@@ -1,0 +1,32 @@
+121GW Companion for iPhone Licence
+
+Copyright (c) 2026 zombu4
+
+1. Permitted use
+   Individuals, for their own use, and schools, universities and non-profit organisations may, free of charge, use,
+   study, build, run and modify this software (the app's sources, the Meter121Kit package and the accompanying
+   documents), and may share copies, modified or not, provided that no money or other consideration is charged for
+   them and that this licence text is included unchanged.
+
+2. Companies
+   Use by or on behalf of a company or any other business, in any form (including internal use, evaluation, testing,
+   production, service and support work), needs the prior written permission of the copyright holder (zombu4). This
+   does not apply to EEVblog (section 4).
+
+3. Restrictions
+   Except by the copyright holder (zombu4) and EEVblog (David L. Jones), this software may not be
+   a) sold, licensed for a fee or otherwise offered for money or other consideration, in source or binary form;
+   b) bundled with, pre-installed on or distributed as part of any product, device, software package, software
+      distribution or service.
+
+4. The copyright holder and EEVblog
+   The copyright holder (zombu4) and EEVblog (David L. Jones) may each use, sell, bundle, distribute and relicense
+   this software without the restrictions of sections 2 and 3; the copyright holder grants EEVblog this permission in
+   full and irrevocably. No one else may sell or bundle it.
+
+5. Third-party material
+   The original EEVblog bootloader and firmware images are not part of this software.
+
+6. No warranty
+   This software is provided "as is", without warranty of any kind. Flashing firmware to a meter is done at the
+   user's own risk; the copyright holder and EEVblog are not liable for any damage to equipment, data or calibration.

@@ -1,9 +1,10 @@
 # 121GW for iPhone
 
-The companion of [121GW-Open-Firmware](https://github.com/zombu4/121GW-Open-Firmware) as a native iOS app (Swift,
-SwiftUI, CoreBluetooth).  This is the branch `ios`: only the iPhone app lives here.  The firmware and the emulator are
-on `main`, the desktop companion on `companion`; this app follows the companion's protocol and behaviour, ported module
-by module (the source of each part is named at the top of its file).
+The companion of [121GW-Open-Firmware](https://github.com/zombu4/121GW-Open-Firmware) as a native iPhone app (Swift,
+SwiftUI, CoreBluetooth).  The firmware and the emulator are on that repository's `main` branch, the desktop companion
+on its `companion` branch; this app follows the companion's protocol and behaviour, ported module by module (the
+source of each part is named at the top of its file).  Free: no account, no ads, no in-app purchases, no data
+collected ([privacy policy](https://github.com/zombu4/121GW-Open-Firmware/blob/main/PRIVACY.md)).
 
 ## What it does
 
@@ -27,7 +28,7 @@ running in the background (Bluetooth background mode).
     Sources/Meter121Kit/     Frames, Link2, Display, Keys, Clock, Session, Versions, Transfer, Card, MeterSettings,
                              Releases (zip, SHA-256, install plan), Derived
     Tests/Meter121KitTests/  ported from the companion's tests, with fake meters for the transfers, card and settings
-    App/Meter121.xcodeproj   the iPhone / iPad app (Xcode 16 or newer, iOS 17 or newer)
+    App/Meter121.xcodeproj   the iPhone app (Xcode 16 or newer, iOS 17 or newer)
     App/Meter121/            Link (CoreBluetooth, NTP), Model (the controller, recording, updates, report), Views
 
 ## Build and run
@@ -43,5 +44,11 @@ The protocol tests run without Xcode:
 
 ## Status
 
-Written against the companion 1.3.4 and the firmware's documents; the protocol package passes its tests (47) on
-Linux; the app has not yet been built in Xcode or tried on a meter.
+Verified working: built in Xcode 27 and run on an iPhone 17 Pro Max with a 121GW on firmware F-1.34 and bootloader
+B-1.16 (live readings, statistics, trend, release list), in portrait and landscape.  The protocol package passes its
+47 tests (`swift test`).
+
+## Licence
+
+See [LICENSE](LICENSE): free for personal, school and non-profit use; no sale or bundling except by the copyright
+holder and EEVblog.
