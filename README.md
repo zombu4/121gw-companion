@@ -4,6 +4,12 @@
 
 Free on the App Store.
 
+| Live | Scope | Meter |
+|---|---|---|
+| <img src="docs/iphone-1-live.jpg" alt="LIVE: the reading as the meter's seven-segment display with symbols and bargraph, statistics, trend and the meter's keys" width="260"> | <img src="docs/iphone-2-scope.jpg" alt="SCOPE: the readings on a scope grid with time base, stop and cursors" width="260"> | <img src="docs/iphone-3-meter.jpg" alt="METER: firmware and bootloader versions, the update check and the release list" width="260"> |
+
+Taken on an iPhone 17 Pro Max connected to a 121GW with firmware F-1.34.
+
 The companion of [121GW-Open-Firmware](https://github.com/zombu4/121GW-Open-Firmware) as a native iPhone app (Swift,
 SwiftUI, CoreBluetooth).  The firmware and the emulator are on that repository's `main` branch, the desktop companion
 on its `companion` branch; this app follows the companion's protocol and behaviour, ported module by module (the
