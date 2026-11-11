@@ -1,6 +1,6 @@
 # 121GW for iPhone
 
-<a href="https://apps.apple.com/app/id6833369656"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us" alt="Download on the App Store" height="54"></a>
+<a href="https://apps.apple.com/app/id6833369656"><img src="docs/app-store-badge.svg" alt="Download on the App Store" height="54"></a>
 
 Free on the App Store.
 
