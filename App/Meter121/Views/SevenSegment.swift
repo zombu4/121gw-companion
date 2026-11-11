@@ -38,22 +38,27 @@ struct SevenSegmentText: View {
         return out
     }
 
+    // `height` is the largest size: on a narrow screen the cells shrink with their proportions kept, so the display
+    // never makes the page wider than the screen (6 cells at 92 pt are 386 pt, more than an iPhone has beside the unit)
     var body: some View {
         let cellsUsed = Self.layout(text, cells)
-        let w = height * 0.58
+        let ratio = CGFloat(cellsUsed.count) * 0.70     // width / height: each cell 0.58 h wide, 0.12 h apart
         Canvas { ctx, size in
             let off = Bench.segmentOff(scheme)
+            let h = size.height
+            let w = h * 0.58
             for (i, cell) in cellsUsed.enumerated() {
-                let x0 = CGFloat(i) * (w + height * 0.12)
+                let x0 = CGFloat(i) * (w + h * 0.12)
                 let mask = Self.masks[cell.0] ?? 0
-                draw(&ctx, x0: x0, w: w, h: size.height, mask: 0b1111111, color: off)
-                draw(&ctx, x0: x0, w: w, h: size.height, mask: mask, color: lit)
-                let r = height * 0.06
-                let dot = Path(ellipseIn: CGRect(x: x0 + w + height * 0.03 - r / 2, y: size.height - r * 1.4, width: r, height: r))
+                draw(&ctx, x0: x0, w: w, h: h, mask: 0b1111111, color: off)
+                draw(&ctx, x0: x0, w: w, h: h, mask: mask, color: lit)
+                let r = h * 0.06
+                let dot = Path(ellipseIn: CGRect(x: x0 + w + h * 0.03 - r / 2, y: h - r * 1.4, width: r, height: r))
                 ctx.fill(dot, with: .color(cell.1 ? lit : off))
             }
         }
-        .frame(width: CGFloat(cellsUsed.count) * (w + height * 0.12), height: height)
+        .aspectRatio(ratio, contentMode: .fit)
+        .frame(maxWidth: ratio * height, maxHeight: height)
         .accessibilityLabel(text)
     }
 

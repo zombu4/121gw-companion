@@ -50,6 +50,13 @@ public struct DerivedValues: Equatable, Sendable {
     public var loopPct: Double?
     public var ptC: Double?
     public var verdict: String?          // "PASS", "HI", "LO"
+
+    public init(relPct: Double? = nil, loopPct: Double? = nil, ptC: Double? = nil, verdict: String? = nil) {
+        self.relPct = relPct
+        self.loopPct = loopPct
+        self.ptC = ptC
+        self.verdict = verdict
+    }
 }
 
 public struct Derived: Sendable {

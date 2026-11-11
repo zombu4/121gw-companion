@@ -37,7 +37,7 @@ struct Caption: View {
     }
 }
 
-/// A flat button with a hairline frame; the accent fills it.
+/// A flat pill-shaped button with a hairline frame; the accent fills it.
 struct BenchButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.isEnabled) private var enabled
@@ -46,15 +46,15 @@ struct BenchButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 14, weight: .semibold))
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 16)
             .padding(.vertical, 9)
             .frame(minHeight: 40)
             .foregroundStyle(accent ? Color.black : Bench.ink(scheme))
-            .background(accent ? Bench.yellow.opacity(configuration.isPressed ? 0.7 : 1) :
-                (configuration.isPressed ? Bench.yellowDim : Color.clear))
-            .overlay(Rectangle().stroke(accent ? Color.clear : Bench.hairline(scheme), lineWidth: 1))
+            .background(Capsule().fill(accent ? Bench.yellow.opacity(configuration.isPressed ? 0.7 : 1) :
+                (configuration.isPressed ? Bench.yellowDim : Color.clear)))
+            .overlay(Capsule().stroke(accent ? Color.clear : Bench.hairline(scheme), lineWidth: 1))
             .opacity(enabled ? 1 : 0.4)
-            .contentShape(Rectangle())
+            .contentShape(Capsule())
     }
 }
 
@@ -82,6 +82,7 @@ struct ValueRow: View {
 struct BenchPage<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
     let title: String
+    var maxWidth: CGFloat = 720             // one column; the Live page in landscape has two and takes more
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -91,7 +92,7 @@ struct BenchPage<Content: View>: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) { content }
                     .padding(16)
-                    .frame(maxWidth: 720)
+                    .frame(maxWidth: maxWidth)
                     .frame(maxWidth: .infinity)
             }
         }

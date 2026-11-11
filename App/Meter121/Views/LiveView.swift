@@ -6,15 +6,35 @@ import SwiftUI
 
 struct LiveView: View {
     @EnvironmentObject var meter: MeterController
+    @Environment(\.verticalSizeClass) private var vSize
 
     var body: some View {
-        BenchPage(title: "Live") {
-            LCDPanel(reading: meter.reading, stale: meter.stale, desk: meter.desk)
-            if let note = meter.link2Note { NoteText(text: note) }
-            StatsPanel()
-            DerivedPanel()
-            MiniTrend()
-            KeyPad()
+        if vSize == .compact {
+            // landscape: the display alone takes the height of the screen, so it goes left and the rest right
+            BenchPage(title: "Live", maxWidth: 1100) {
+                HStack(alignment: .top, spacing: 16) {
+                    // the keys under the display, both above the floating tab bar on a 440 pt high screen
+                    VStack(alignment: .leading, spacing: 12) {
+                        LCDPanel(reading: meter.reading, stale: meter.stale, desk: meter.desk, digitHeight: 48, subHeight: 26)
+                        KeyPad(compact: true)
+                        if let note = meter.link2Note { NoteText(text: note) }
+                    }
+                    VStack(alignment: .leading, spacing: 14) {
+                        StatsPanel()
+                        DerivedPanel()
+                        MiniTrend()
+                    }
+                }
+            }
+        } else {
+            BenchPage(title: "Live") {
+                LCDPanel(reading: meter.reading, stale: meter.stale, desk: meter.desk)
+                if let note = meter.link2Note { NoteText(text: note) }
+                StatsPanel()
+                DerivedPanel()
+                MiniTrend()
+                KeyPad()
+            }
         }
     }
 }
@@ -36,6 +56,8 @@ struct LCDPanel: View {
     let reading: Reading?
     let stale: Bool
     let desk: Bool
+    var digitHeight: CGFloat = 92           // the main digits at their largest; they shrink to the width they get
+    var subHeight: CGFloat = 34             // the sub display's digits
 
     static let symbolOrder = ["AC", "DC", "AUTO", "HOLD", "A-HOLD", "REL", "MIN", "MAX", "AVG", "PEAK", "MEM", "1kHz", "HV",
                               "APO", "BAT", "BT"]
@@ -54,7 +76,7 @@ struct LCDPanel: View {
             symbols
             HStack(alignment: .bottom, spacing: 10) {
                 Spacer(minLength: 0)
-                SevenSegmentText(text: reading?.text ?? "-----", lit: stale ? Bench.yellow.opacity(0.45) : Bench.yellow, height: 92)
+                SevenSegmentText(text: reading?.text ?? "-----", lit: stale ? Bench.yellow.opacity(0.45) : Bench.yellow, height: digitHeight)
                 Text(reading?.unit ?? "")
                     .font(.system(size: 30, weight: .semibold))
                     .foregroundStyle(Bench.ink(scheme))
@@ -65,7 +87,7 @@ struct LCDPanel: View {
                 if let r = reading, !r.subText.isEmpty {
                     Caption(r.subLabel)
                     Spacer()
-                    SevenSegmentText(text: r.subText, cells: 5, lit: Bench.ink(scheme), height: 34)
+                    SevenSegmentText(text: r.subText, cells: 5, lit: Bench.ink(scheme), height: subHeight)
                     Text(r.subUnit).font(.system(size: 15, weight: .semibold)).frame(minWidth: 34, alignment: .leading)
                 } else {
                     Caption("sub display")
@@ -176,20 +198,21 @@ struct KeyPad: View {
     @State private var error: String?
     @State private var confirmSetup = false
     @State private var busy = false
+    var compact = false                     // landscape: lower keys, no caption, so they fit under the display
 
     let rows: [[MeterKey]] = [[.range, .hold, .rel, .peak], [.mode, .minmax, .mem, .setup]]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Caption("Keys · touch and hold for a long press")
+            if !compact { Caption("Keys · touch and hold for a long press") }
             ForEach(0..<rows.count, id: \.self) { r in
                 HStack(spacing: 8) {
                     ForEach(rows[r], id: \.self) { k in
                         Text(k.label)
                             .font(.system(size: 13, weight: .semibold))
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                            .overlay(Rectangle().stroke(Bench.hairline(scheme)))
-                            .contentShape(Rectangle())
+                            .frame(maxWidth: .infinity, minHeight: compact ? 38 : 44)
+                            .overlay(Capsule().stroke(Bench.hairline(scheme)))
+                            .contentShape(Capsule())
                             .onLongPressGesture(minimumDuration: 0.6) { press(k, long: true) }
                             .onTapGesture {
                                 if k == .setup { confirmSetup = true } else { press(k, long: false) }

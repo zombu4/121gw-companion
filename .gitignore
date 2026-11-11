@@ -4,3 +4,7 @@
 *.xcodeproj/project.xcworkspace/xcuserdata/
 DerivedData/
 .DS_Store
+.build-xcode/
+.build-xcode.log
+**/*.xcodeproj/xcuserdata/
+**/*.xcodeproj/project.xcworkspace/
