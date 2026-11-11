@@ -1,6 +1,8 @@
 # 121GW for iPhone
 
-**On the App Store: [121GW Companion](https://apps.apple.com/app/id6833369656)** (free).
+<a href="https://apps.apple.com/app/id6833369656"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us" alt="Download on the App Store" height="54"></a>
+
+Free on the App Store.
 
 The companion of [121GW-Open-Firmware](https://github.com/zombu4/121GW-Open-Firmware) as a native iPhone app (Swift,
 SwiftUI, CoreBluetooth).  The firmware and the emulator are on that repository's `main` branch, the desktop companion
