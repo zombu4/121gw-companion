@@ -148,14 +148,25 @@ final class MeterLink: NSObject, ObservableObject {
 
     func damaged() -> [(Int, [UInt8])] { reassembler.damaged() }
 
-    /// Search without connecting (the meter chooser): fills `found` for scanSeconds.
+    /// Search without connecting (the meter chooser): fills `found` for scanSeconds; started when Bluetooth is on.
+    @Published private(set) var browsing = false
+    private var browseWanted = false
+
     func browse() {
-        guard state == .idle, central.state == .poweredOn else { return }
+        guard state == .idle else { return }
         found = []
+        browsing = true
+        guard central.state == .poweredOn else {
+            browseWanted = true                            // centralManagerDidUpdateState starts it
+            return
+        }
+        browseWanted = false
         central.scanForPeripherals(withServices: [Self.service], options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
         scanTimer?.cancel()
         scanTimer = after(Self.scanSeconds) { [weak self] in
-            guard let self, self.state == .idle, self.central.isScanning else { return }
+            guard let self else { return }
+            self.browsing = false
+            guard self.state == .idle, self.central.isScanning else { return }
             self.central.stopScan()
         }
     }
@@ -326,6 +337,7 @@ extension MeterLink: CBCentralManagerDelegate, CBPeripheralDelegate {
             bluetoothState = central.state
             if central.state == .poweredOn {
                 if want && peripheral == nil { start() }
+                if browseWanted && !want { browse() }
             } else if want {
                 peripheral = nil
                 dataChar = nil

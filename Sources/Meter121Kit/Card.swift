@@ -174,13 +174,14 @@ public struct CardError: LocalizedError, Equatable {
 }
 
 /// Stop-and-wait requests of type 0x10.. over `send`; the 0x82 answer frames arrive in `answers`.
-public final class CardClient {
+public final class CardClient: @unchecked Sendable {
     public static let retries = 4
     public static let timeouts: [UInt8: Double] = [0x10: 15, 0x11: 30, 0x1A: 30, 0x12: 5, 0x13: 20, 0x14: 30, 0x15: 180]
     let send: Sender.Send
     let answers: AnswerQueue<[UInt8]>
     var seq = 0
-    public var cancelled = false
+    private let _cancelled = Locked(false)
+    public var cancelled: Bool { get { _cancelled.value } set { _cancelled.value = newValue } }   // set by the page
     public var minTimeout = 0.0              // link 2: the time a whole answer takes at the block pace
 
     public init(send: @escaping Sender.Send, answers: AnswerQueue<[UInt8]>) {

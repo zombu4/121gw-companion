@@ -156,11 +156,12 @@ extension MeterController {
 
     /// what: "firmware", "bootloader" or "both" of the newest releases, or the picks of the user (METER view).
     func runUpdate(_ what: String, picks: [Releases.Kind: InstallPick] = [:]) {
-        guard !update.active else { return }
+        guard !update.active && !updateActive else { return }     // one update at a time, also after a quick double tap
         updateCancelled = false
+        updateActive = true
+        update.phase = .downloading
+        update.message = ""
         Task {
-            updateActive = true
-            update.message = ""
             event("update \(what) started" + (picks.isEmpty ? "" : " (chosen by the user)"))
             do {
                 var steps = what == "both" ? ["firmware", "bootloader"] : [what]

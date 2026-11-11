@@ -159,15 +159,29 @@ public struct TransferStats: Equatable, Sendable {
     }
 }
 
-/// Runs page Ld requests and transfers over `send`, with the 0x81 answers put into `answers`.
-public final class Sender {
+/// A value behind a lock: written by a transfer running off the main thread, read by the page.
+public final class Locked<T>: @unchecked Sendable {
+    private var v: T
+    private let lock = NSLock()
+    public init(_ v: T) { self.v = v }
+    public var value: T {
+        get { lock.lock(); defer { lock.unlock() }; return v }
+        set { lock.lock(); defer { lock.unlock() }; v = newValue }
+    }
+    public func update(_ f: (inout T) -> Void) { lock.lock(); defer { lock.unlock() }; f(&v) }
+}
+
+/// Runs page Ld requests and transfers over `send`, with the 0x81 answers put into `answers`.  Progress,
+/// statistics and the cancel flag are behind locks: the page reads them while the transfer runs.
+public final class Sender: @unchecked Sendable {
     public typealias Send = ([UInt8]) async throws -> Void
     let send: Send
     public let answers = AnswerQueue<Transfer.Answer>()
-    public private(set) var done = 0
-    public private(set) var total = 0
-    public var cancelled = false
-    public private(set) var stats = TransferStats()
+    private let _done = Locked(0), _total = Locked(0), _cancelled = Locked(false), _stats = Locked(TransferStats())
+    public private(set) var done: Int { get { _done.value } set { _done.value = newValue } }
+    public private(set) var total: Int { get { _total.value } set { _total.value = newValue } }
+    public var cancelled: Bool { get { _cancelled.value } set { _cancelled.value = newValue } }
+    public private(set) var stats: TransferStats { get { _stats.value } set { _stats.value = newValue } }
     public var timeoutData = Transfer.timeoutData
     public var timeoutEnd = Transfer.timeoutEnd
     public var timeoutStart = Transfer.timeoutStart

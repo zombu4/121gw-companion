@@ -127,7 +127,10 @@ struct MeterPicker: View {
         NavigationStack {
             List {
                 Section("Meters heard") {
-                    if link.found.isEmpty { Text("Searching…").foregroundStyle(.secondary) }
+                    if link.found.isEmpty {
+                        Text(link.browsing ? "Searching…" : "No meter heard. Is it on, with Bluetooth on (long PEAK)?")
+                            .foregroundStyle(.secondary)
+                    }
                     ForEach(link.found) { m in
                         Button {
                             meter.connect(m.id)
@@ -150,6 +153,7 @@ struct MeterPicker: View {
                 }
             }
             .navigationTitle("Choose a meter")
+            .refreshable { link.browse() }
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
             .onAppear { link.browse() }
         }
