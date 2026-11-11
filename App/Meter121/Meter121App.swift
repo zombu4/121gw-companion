@@ -26,8 +26,11 @@ struct RootView: View {
             LiveView().tabItem { Label("Live", systemImage: "gauge.with.dots.needle.33percent") }.tag(0)
             ScopeView().tabItem { Label("Scope", systemImage: "waveform.path.ecg") }.tag(1)
             LogView().tabItem { Label("Log", systemImage: "record.circle") }.tag(2)
-            MeterInfoView().tabItem { Label("Meter", systemImage: "cpu") }.tag(3)
-            SettingsView().tabItem { Label("Settings", systemImage: "gearshape") }.tag(4)
+            CardView().tabItem { Label("Card", systemImage: "sdcard") }.tag(3)
+            NavigationStack {
+                MeterInfoView().toolbar(.hidden, for: .navigationBar)
+            }
+            .tabItem { Label("Meter", systemImage: "cpu") }.tag(4)
         }
         .overlay {
             if meter.offline && meter.prefs.offlineWindow { OfflineOverlay() }
@@ -148,7 +151,7 @@ struct MeterPicker: View {
             }
             .navigationTitle("Choose a meter")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
-            .onAppear { if link.state == .idle { meter.connect(nil) } }
+            .onAppear { link.browse() }
         }
     }
 }

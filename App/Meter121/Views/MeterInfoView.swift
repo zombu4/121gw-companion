@@ -11,6 +11,8 @@ struct MeterInfoView: View {
     @State private var clockBusy = false
     @State private var clockError: String?
     @State private var leaveError: String?
+    @State private var reportURL: URL?
+    @State private var reporting = false
 
     var firmwareText: String {
         switch meter.fwKind {
@@ -48,6 +50,15 @@ struct MeterInfoView: View {
                     .disabled(!meter.has(.leaveLd))
                 }
                 if let leaveError { Text(leaveError).font(.footnote).foregroundStyle(Bench.bad) }
+            }
+            Hairline()
+            FirmwareSection()
+            Hairline()
+            NavigationLink { MeterSettingsView().toolbar(.visible, for: .navigationBar) } label: {
+                LinkRow(title: "Meter settings", detail: "the meter's SETUP settings (page Ld)")
+            }
+            NavigationLink { SettingsView() } label: {
+                LinkRow(title: "App settings", detail: "recordings, colours, time server, diagnosis")
             }
             Hairline()
             Caption("Clock")
@@ -89,6 +100,40 @@ struct MeterInfoView: View {
                 ValueRow(label: "Disconnects", value: "\(link.stats.disconnectCount)")
             }
             Hairline()
+            Caption("Transfer diagnosis (page Ld)")
+            HStack {
+                Button("Read diagnosis") { Task { await meter.diagRead() } }
+                    .benchButton()
+                    .disabled(meter.lockReason != nil)
+                Spacer()
+            }
+            if !meter.diag.text.isEmpty {
+                Text(meter.diag.text).font(.system(size: 12)).textSelection(.enabled)
+                if !meter.diag.values.isEmpty {
+                    Text("STATUS 0..\(meter.diag.values.count - 1): " + meter.diag.values.map(String.init).joined(separator: " "))
+                        .font(.system(size: 11, design: .monospaced)).foregroundStyle(Bench.dim(scheme)).textSelection(.enabled)
+                }
+            }
+            Hairline()
+            Caption("Diagnosis report")
+            HStack {
+                Button(reporting ? "Collecting…" : "Make report") {
+                    reporting = true
+                    Task {
+                        reportURL = await meter.saveReport()
+                        reporting = false
+                    }
+                }
+                .benchButton()
+                .disabled(reporting)
+                if let u = reportURL {
+                    ShareLink(item: u) { Label("Share", systemImage: "square.and.arrow.up") }.benchButton(accent: true)
+                }
+                Spacer()
+            }
+            Text("One anonymised text file (versions, link details, last transfer, diagnosis, settings, events) to attach to a GitHub issue.")
+                .font(.caption).foregroundStyle(Bench.dim(scheme))
+            Hairline()
             Caption("Events")
             VStack(alignment: .leading, spacing: 3) {
                 ForEach(meter.events.suffix(60).reversed()) { e in
@@ -100,5 +145,23 @@ struct MeterInfoView: View {
                 }
             }
         }
+    }
+}
+
+struct LinkRow: View {
+    @Environment(\.colorScheme) private var scheme
+    let title: String
+    let detail: String
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.system(size: 15, weight: .semibold)).foregroundStyle(Bench.ink(scheme))
+                Text(detail).font(.caption).foregroundStyle(Bench.dim(scheme))
+            }
+            Spacer()
+            Image(systemName: "chevron.right").foregroundStyle(Bench.dim(scheme))
+        }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
     }
 }

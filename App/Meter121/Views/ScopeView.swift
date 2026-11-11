@@ -115,7 +115,7 @@ struct TrendCanvas: View {
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 0).onChanged { d in
                 guard let b = cursors, let c = b.wrappedValue else { return }
-                let f = min(1, max(0, d.location.x / g.size.width))
+                let f = Double(min(1, max(0, d.location.x / g.size.width)))
                 b.wrappedValue = abs(f - c.0) < abs(f - c.1) ? (f, c.1) : (c.0, f)
             }, including: cursors?.wrappedValue == nil ? .subviews : .all)
         }

@@ -12,6 +12,7 @@ struct LiveView: View {
             LCDPanel(reading: meter.reading, stale: meter.stale, desk: meter.desk)
             if let note = meter.link2Note { NoteText(text: note) }
             StatsPanel()
+            DerivedPanel()
             MiniTrend()
             KeyPad()
         }

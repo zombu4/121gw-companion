@@ -11,6 +11,13 @@ public struct Bargraph: Equatable, Sendable {
     public var lit: Int            // segments lit including segment 0
     public var negative: Bool
     public var label: String       // full-scale label "5", "50", "500", "1000"
+
+    public init(shown: Bool, lit: Int, negative: Bool, label: String) {
+        self.shown = shown
+        self.lit = lit
+        self.negative = negative
+        self.label = label
+    }
 }
 
 public struct Reading: Equatable, Sendable {

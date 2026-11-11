@@ -7,6 +7,7 @@
 // States: idle, scanning, connecting, connected, lost (the meter went away, e.g. auto power-off; the link searches again
 // by itself while `want` is set).  The meter accepts one connection at a time: no other Bluetooth app may hold it.
 
+import Combine
 import CoreBluetooth
 import Foundation
 import Meter121Kit
@@ -147,6 +148,18 @@ final class MeterLink: NSObject, ObservableObject {
 
     func damaged() -> [(Int, [UInt8])] { reassembler.damaged() }
 
+    /// Search without connecting (the meter chooser): fills `found` for scanSeconds.
+    func browse() {
+        guard state == .idle, central.state == .poweredOn else { return }
+        found = []
+        central.scanForPeripherals(withServices: [Self.service], options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
+        scanTimer?.cancel()
+        scanTimer = after(Self.scanSeconds) { [weak self] in
+            guard let self, self.state == .idle, self.central.isScanning else { return }
+            self.central.stopScan()
+        }
+    }
+
     // MARK: connection
 
     private func set(_ s: LinkState, _ d: String = "") {
@@ -173,7 +186,7 @@ final class MeterLink: NSObject, ObservableObject {
         misses += 1
         let text = quickRetryWanted ? "the meter is restarting into its update mode; looking for it" : Self.notFound
         set(lostOnce ? .lost : .scanning, text)
-        schedule(start)
+        schedule { [weak self] in self?.start() }
     }
 
     private func schedule(_ f: @escaping @MainActor @Sendable () -> Void) {
@@ -278,6 +291,13 @@ final class MeterLink: NSObject, ObservableObject {
             stats.writeErrors += 1
             stats.lastWriteError = (Date(), error.localizedDescription)
             w.done.resume(throwing: error)
+            if let e = error as? LinkError, case .timeout = e, let p = peripheral {
+                // a write not confirmed in time: a late confirmation would complete the next write, so the
+                // connection is ended (didDisconnect searches the meter again while it is wanted)
+                failWrites(LinkError.cancelled)
+                central.cancelPeripheralConnection(p)
+                return
+            }
         } else {
             stats.writes += 1
             stats.writeTimes.append(Date().timeIntervalSince(w.started))
@@ -349,7 +369,7 @@ extension MeterLink: CBCentralManagerDelegate, CBPeripheralDelegate {
             guard p == peripheral else { return }
             peripheral = nil
             set(lostOnce ? .lost : .scanning, "connecting failed: \(error?.localizedDescription ?? "no reason given")")
-            schedule(start)
+            schedule { [weak self] in self?.start() }
         }
     }
 
@@ -369,7 +389,7 @@ extension MeterLink: CBCentralManagerDelegate, CBPeripheralDelegate {
             }
             if want {
                 set(.lost, "the meter went away (auto power-off or out of range); looking for it again")
-                schedule(start)
+                schedule { [weak self] in self?.start() }
             }
         }
     }

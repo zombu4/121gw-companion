@@ -32,6 +32,26 @@ struct Preferences: Codable, Equatable {
     var meter: UUID?                              // the meter last connected, searched first
     var linkPaces: [String: Int] = [:]            // link 2 block pace per meter, measured by this app version
     var linkPacesBy = ""
+    var derived = DerivedOptions()                // loop range, Pt type, limits of the derived values
+
+    init() {}
+
+    // every key optional: a setting added in a later version keeps the others of an older file
+    init(from d: Decoder) throws {
+        let c = try d.container(keyedBy: CodingKeys.self)
+        let def = Preferences()
+        ntpServer = (try? c.decode(String.self, forKey: .ntpServer)) ?? def.ntpServer
+        clockOnConnect = (try? c.decode(Bool.self, forKey: .clockOnConnect)) ?? def.clockOnConnect
+        updateCheck = (try? c.decode(UpdateCheck.self, forKey: .updateCheck)) ?? def.updateCheck
+        csvFormat = (try? c.decode(String.self, forKey: .csvFormat)) ?? def.csvFormat
+        theme = (try? c.decode(Theme.self, forKey: .theme)) ?? def.theme
+        extendedDiagnosis = (try? c.decode(Bool.self, forKey: .extendedDiagnosis)) ?? def.extendedDiagnosis
+        offlineWindow = (try? c.decode(Bool.self, forKey: .offlineWindow)) ?? def.offlineWindow
+        meter = try? c.decode(UUID.self, forKey: .meter)
+        linkPaces = (try? c.decode([String: Int].self, forKey: .linkPaces)) ?? [:]
+        linkPacesBy = (try? c.decode(String.self, forKey: .linkPacesBy)) ?? ""
+        derived = (try? c.decode(DerivedOptions.self, forKey: .derived)) ?? DerivedOptions()
+    }
 
     var csv: CSVFormat { CSVFormat(rawValue: csvFormat) ?? .comma }
 

@@ -25,10 +25,13 @@ enum NTPClient {
     static func query(_ server: String, timeout: Double = 3.0) async throws -> Answer {
         let conn = NWConnection(host: NWEndpoint.Host(server), port: 123, using: .udp)
         let queue = DispatchQueue(label: "ntp")
-        defer { conn.cancel() }
+        defer {
+            conn.stateUpdateHandler = nil
+            conn.cancel()
+        }
         let result: ([UInt8], Double, Double) = try await withCheckedThrowingContinuation { cont in
             let once = Once()
-            let fail = { (e: Error) in if once.take() { cont.resume(throwing: e) } }
+            let fail: @Sendable (Error) -> Void = { e in if once.take() { cont.resume(throwing: e) } }
             queue.asyncAfter(deadline: .now() + timeout) { fail(Failure.noAnswer(server)) }
             conn.stateUpdateHandler = { st in
                 switch st {

@@ -10,54 +10,52 @@ struct SettingsView: View {
     @State private var confirmReset = false
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Recordings") {
-                    Picker("CSV format", selection: $meter.prefs.csvFormat) {
-                        Text(", and decimal point").tag("comma")
-                        Text("; and decimal comma").tag("semicolon")
-                    }
-                    Text("Recordings are kept in the Files app under On My iPhone › 121GW.").font(.footnote).foregroundStyle(.secondary)
+        Form {
+            Section("Recordings") {
+                Picker("CSV format", selection: $meter.prefs.csvFormat) {
+                    Text(", and decimal point").tag("comma")
+                    Text("; and decimal comma").tag("semicolon")
                 }
-                Section("Colours") {
-                    Picker("Colours", selection: $meter.prefs.theme) {
-                        Text("System").tag(Theme.system)
-                        Text("Dark").tag(Theme.dark)
-                        Text("Light").tag(Theme.light)
-                    }
-                    .pickerStyle(.segmented)
+                Text("Recordings are kept in the Files app under On My iPhone › 121GW.").font(.footnote).foregroundStyle(.secondary)
+            }
+            Section("Colours") {
+                Picker("Colours", selection: $meter.prefs.theme) {
+                    Text("System").tag(Theme.system)
+                    Text("Dark").tag(Theme.dark)
+                    Text("Light").tag(Theme.light)
                 }
-                Section("Meter clock") {
-                    TextField("Time server", text: $server)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
-                        .onSubmit { save() }
-                    Toggle("Set the clock after every connection", isOn: $meter.prefs.clockOnConnect)
-                }
-                Section("Firmware updates") {
-                    Picker("Check for updates", selection: $meter.prefs.updateCheck) {
-                        ForEach(UpdateCheck.allCases) { Text($0.label).tag($0) }
-                    }
-                }
-                Section("Diagnosis") {
-                    Toggle("Extended diagnosis", isOn: $meter.prefs.extendedDiagnosis)
-                    Text("With firmware F-1.15 or newer the meter counts its link errors; the diagnosis report shows them. Applies from the next connection.")
-                        .font(.footnote).foregroundStyle(.secondary)
-                    Toggle("Show \"meter offline\" after a minute", isOn: $meter.prefs.offlineWindow)
-                }
-                Section {
-                    Button("Reset all settings", role: .destructive) { confirmReset = true }
+                .pickerStyle(.segmented)
+            }
+            Section("Meter clock") {
+                TextField("Time server", text: $server)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.URL)
+                    .onSubmit { save() }
+                Toggle("Set the clock after every connection", isOn: $meter.prefs.clockOnConnect)
+            }
+            Section("Firmware updates") {
+                Picker("Check for updates", selection: $meter.prefs.updateCheck) {
+                    ForEach(UpdateCheck.allCases) { Text($0.label).tag($0) }
                 }
             }
-            .navigationTitle("Settings")
-            .onAppear { server = meter.prefs.ntpServer }
-            .onDisappear { save() }
-            .confirmationDialog("Reset all settings of this app?", isPresented: $confirmReset, titleVisibility: .visible) {
-                Button("Reset", role: .destructive) {
-                    meter.prefs = Preferences()
-                    server = meter.prefs.ntpServer
-                }
+            Section("Diagnosis") {
+                Toggle("Extended diagnosis", isOn: $meter.prefs.extendedDiagnosis)
+                Text("With firmware F-1.15 or newer the meter counts its link errors; the diagnosis report shows them. Applies from the next connection.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                Toggle("Show \"meter offline\" after a minute", isOn: $meter.prefs.offlineWindow)
+            }
+            Section {
+                Button("Reset all settings", role: .destructive) { confirmReset = true }
+            }
+        }
+        .navigationTitle("App settings")
+        .onAppear { server = meter.prefs.ntpServer }
+        .onDisappear { save() }
+        .confirmationDialog("Reset all settings of this app?", isPresented: $confirmReset, titleVisibility: .visible) {
+            Button("Reset", role: .destructive) {
+                meter.prefs = Preferences()
+                server = meter.prefs.ntpServer
             }
         }
     }

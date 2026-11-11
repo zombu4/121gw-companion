@@ -76,6 +76,15 @@ final class MeterController: ObservableObject {
     @Published private(set) var framesPerSecond: Double?
     @Published var busyText = ""                 // the operation that holds the link, for the UI
     @Published private(set) var hb = (sent: 0, probes: 0, dead: 0)
+    @Published private(set) var derived = DerivedValues()   // REL %, loop %, Pt, limit (Meter121Kit.Derived)
+    @Published var card = CardState()            // the SD card page (MeterController+Desk.swift)
+    @Published var settings = SettingsState()    // the meter's SETUP settings
+    @Published var diag = DiagState()            // the transfer diagnosis
+    var cardCancel: (() -> Void)?
+    @Published var update = UpdateState()        // firmware and bootloader updates (MeterController+Update.swift)
+    var updateSender: Sender?
+    var updateCancelled = false
+    private var lastReleaseCheck = Date.distantPast
 
     private let recorder = Recorder()
 
@@ -85,8 +94,9 @@ final class MeterController: ObservableObject {
     private var versionAnswer: String?
     private var blAnswer: String?
     private var clockEcho: [UInt8]?
-    private(set) var xdiagFrame: [UInt8]?
-    private(set) var mclockFrame: [UInt8]?
+    var xdiagFrame: [UInt8]?                     // the last F9 answer (extended diagnosis)
+    var mclockFrame: [UInt8]?                    // the last FA answer (clock measurement)
+    private var derivedState = Derived()
     private var stFirst: Date?
     private var opsBusy: String?                // the exclusive use of the link by one operation
     private(set) var sender: Sender?            // the page Ld sender of the running operation
@@ -102,13 +112,14 @@ final class MeterController: ObservableObject {
         link.onFrame = { [weak self] f, t in self?.frame(f, t) }
         link.onState = { [weak self] s, d in self?.linkState(s, d) }
         loops = [
-            every(1.0) { $0.watchDesk() },
-            every(1.0) { $0.heartbeatStep(Date()) },
-            every(1.0) { $0.paceStep(Date()) },
+            every(1.0) { await $0.watchDesk() },
+            every(1.0) { await $0.heartbeatStep(Date()) },
+            every(1.0) { await $0.paceStep(Date()) },
+            every(60.0) { await $0.recheckReleases() },
         ]
     }
 
-    private func every(_ s: Double, _ f: @escaping @MainActor (MeterController) async -> Void) -> Task<Void, Never> {
+    private func every(_ s: Double, _ f: @escaping @MainActor @Sendable (MeterController) async -> Void) -> Task<Void, Never> {
         Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: UInt64(s * 1_000_000_000))
@@ -186,6 +197,11 @@ final class MeterController: ObservableObject {
             version = nil
             mode = .unknown
             if let id = link.deviceID { prefs.meter = id }
+            if [.none, .available, .done, .error].contains(update.phase) {
+                update.phase = .none
+                update.later = false
+                update.message = ""
+            }
             askTask?.cancel()
             askTask = Task { await self.askVersion() }
         }
@@ -200,6 +216,9 @@ final class MeterController: ObservableObject {
             let r = Display.decode(f.bytes, at: t)
             session.add(r)
             recorder.add(r)
+            derivedState.options = prefs.derived
+            derivedState.feed(r)
+            derived = derivedState.values()
             if recording { recordingRows = recorder.rows }
             statusFrames += 1
             if stFirst == nil { stFirst = t }
@@ -220,6 +239,7 @@ final class MeterController: ObservableObject {
                 extAnswers.put(f.bytes)
             } else if let a = Transfer.answer(f.bytes) {
                 sender?.answers.put(a)
+                updateSender?.answers.put(a)
             }
         }
     }
@@ -254,6 +274,7 @@ final class MeterController: ObservableObject {
                 mode = .firmware
                 await xdiagConnect()
                 await link2Connect()
+                await releaseCheckNow()
                 if prefs.clockOnConnect { await clockOnConnect() }
             } else if versionEcho != nil {
                 echoOnly += 1
@@ -262,14 +283,49 @@ final class MeterController: ObservableObject {
                 mode = .firmware
                 event("the meter echoed the version question without a version: not the open firmware's fast build")
             } else if let v = await bootProbe() {
-                bootloader = v.bootloaderText
-                mode = .bootloader
+                setBootloaderMode(v)
                 event("update-mode probe: bootloader \(v)")
+                await releaseCheckNow()
             } else {
                 event("update-mode probe: no answer")
                 await sleep(Self.versionRetry)
             }
         }
+    }
+
+    /// One version question (after an update, on a link that survived the restarts).
+    func askVersionOnce() async {
+        versionAnswer = nil
+        do { try await link.send(Frames.versionRequest) } catch { return }
+        await waitFor(Self.versionWait) { self.versionAnswer != nil }
+        guard let v = versionAnswer else { return }
+        event("version question on the kept link: answer \(v)")
+        fwKind = .fast
+        version = v
+        bootloader = await askBootloader()
+        mode = .firmware
+    }
+
+    func setBootloaderMode(_ v: Version) {
+        bootloader = v.bootloaderText
+        mode = .bootloader
+    }
+
+    func stopLink2() {
+        l2c = Link2Control()
+        link.link2Expected = false
+    }
+
+    private func releaseCheckNow() async {
+        lastReleaseCheck = Date()
+        await checkRelease()
+    }
+
+    /// Every 30 minutes while connected (setting "at every connection").
+    private func recheckReleases() async {
+        guard connected, mode != .unknown, !update.active, prefs.updateCheck == .connect,
+              Date().timeIntervalSince(lastReleaseCheck) >= Self.releaseRecheck else { return }
+        await releaseCheckNow()
     }
 
     private func askBootloader() async -> String? {
