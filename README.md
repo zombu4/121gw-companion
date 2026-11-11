@@ -1,12 +1,14 @@
 # 121GW for iPhone
 
-<a href="https://apps.apple.com/app/id6833369656"><img src="docs/app-store-badge.svg" alt="Download on the App Store" height="54"></a>
-
 Free on the App Store.
 
-| Live | Scope | Meter |
-|---|---|---|
-| <img src="docs/iphone-1-live.jpg" alt="LIVE: the reading as the meter's seven-segment display with symbols and bargraph, statistics, trend and the meter's keys" width="260"> | <img src="docs/iphone-2-scope.jpg" alt="SCOPE: the readings on a scope grid with time base, stop and cursors" width="260"> | <img src="docs/iphone-3-meter.jpg" alt="METER: firmware and bootloader versions, the update check and the release list" width="260"> |
+<p align="center">
+  <img src="docs/iphone-1-live.jpg" alt="LIVE: the reading as the meter's seven-segment display with symbols and bargraph, statistics, trend and the meter's keys" width="250">
+  <img src="docs/iphone-2-scope.jpg" alt="SCOPE: the readings on a scope grid with time base, stop and cursors" width="250">
+  <img src="docs/iphone-3-meter.jpg" alt="METER: firmware and bootloader versions, the update check and the release list" width="250">
+</p>
+
+<p align="center"><a href="https://apps.apple.com/app/id6833369656"><img src="docs/app-store-badge.svg" alt="Download on the App Store" height="54"></a></p>
 
 Taken on an iPhone 17 Pro Max connected to a 121GW with firmware F-1.34.
 
