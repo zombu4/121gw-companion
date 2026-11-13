@@ -36,7 +36,9 @@ final class VoiceNotes {
     private(set) var running = false
 
     static let phraseGap: TimeInterval = 0.8 // a gap between two words this long starts a new phrase
-    static let stopWait: TimeInterval = 5    // seconds stop() waits for the last text
+    static let stopWait: TimeInterval = 30   // seconds stop() waits at most for the last text (it normally comes at once
+                                             // when the recogniser finishes; a short limit could drop a sentence said
+                                             // just before Stop; the Log page shows "Writing the last note" meanwhile)
 
     private let engine = AVAudioEngine()
     private var recognizer: Recognizer?
