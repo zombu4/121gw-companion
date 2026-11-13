@@ -97,16 +97,33 @@ public struct Session: Sendable {
     }
 
     public static func csvRow(_ r: Reading, format: CSVFormat, timeZone: TimeZone = .current) -> String {
-        let d = format.decimal
-        func num(_ s: String) -> String { d == "." ? s : s.replacingOccurrences(of: ".", with: d) }
+        csvLine(csvFields(r, format: format, timeZone: timeZone), format: format)
+    }
+
+    /// The header of a recording with voice notes: the columns of csvHeader and "note".
+    public static let csvHeaderNotes = csvHeader + ["note"]
+
+    /// A row of a recording with voice notes: the reading and its note, or (reading nil) the time and the note alone.
+    public static func csvRow(_ row: NoteRow, format: CSVFormat, timeZone: TimeZone = .current) -> String {
+        let fields = row.reading.map { csvFields($0, format: format, timeZone: timeZone) }
+            ?? [csvTime(row.time, format: format, timeZone: timeZone)] + Array(repeating: "", count: csvHeader.count - 1)
+        return csvLine(fields + [row.note], format: format)
+    }
+
+    static func csvTime(_ t: Date, format: CSVFormat, timeZone: TimeZone) -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.timeZone = timeZone
         f.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        let ms = Int((r.t.timeIntervalSince1970.truncatingRemainder(dividingBy: 1)) * 1000)
-        let time = f.string(from: r.t) + d + String(format: "%03d", ms)
-        return csvLine([time, r.modeName, num(r.text), r.unit, r.value.map { num(pyRepr($0)) } ?? "", num(r.subText),
-                        r.subUnit, r.symbols.joined(separator: " ")], format: format)
+        let ms = Int((t.timeIntervalSince1970.truncatingRemainder(dividingBy: 1)) * 1000)
+        return f.string(from: t) + format.decimal + String(format: "%03d", ms)
+    }
+
+    static func csvFields(_ r: Reading, format: CSVFormat, timeZone: TimeZone) -> [String] {
+        let d = format.decimal
+        func num(_ s: String) -> String { d == "." ? s : s.replacingOccurrences(of: ".", with: d) }
+        return [csvTime(r.t, format: format, timeZone: timeZone), r.modeName, num(r.text), r.unit,
+                r.value.map { num(pyRepr($0)) } ?? "", num(r.subText), r.subUnit, r.symbols.joined(separator: " ")]
     }
 
     public static func recordingName(_ start: Date, timeZone: TimeZone = .current) -> String {

@@ -72,6 +72,10 @@ final class MeterController: ObservableObject {
     @Published private(set) var recordingRows = 0
     @Published private(set) var recordingURL: URL?
     @Published private(set) var recordingStart: Date?
+    @Published private(set) var voiceListening = false     // voice notes: the microphone is on for this recording
+    @Published private(set) var voiceHeard = ""            // the words heard last
+    @Published private(set) var voiceNotes = 0             // phrases written into this recording
+    @Published private(set) var recordingClosing = false   // stopped: waiting for the last phrase before closing
     @Published private(set) var statusFrames = 0
     @Published private(set) var framesPerSecond: Double?
     @Published var busyText = ""                 // the operation that holds the link, for the UI
@@ -87,6 +91,7 @@ final class MeterController: ObservableObject {
     private var lastReleaseCheck = Date.distantPast
 
     private let recorder = Recorder()
+    private let voice = VoiceNotes()
 
     // answers the waiting operations look for
     private var keyEcho: [UInt8]?
@@ -215,7 +220,7 @@ final class MeterController: ObservableObject {
         case .status:
             let r = Display.decode(f.bytes, at: t)
             session.add(r)
-            recorder.add(r)
+            if !recordingClosing { recorder.add(r) }
             derivedState.options = prefs.derived
             derivedState.feed(r)
             derived = derivedState.values()
@@ -641,19 +646,50 @@ final class MeterController: ObservableObject {
 
     // MARK: recording
 
-    func startRecording() throws {
-        let u = try recorder.begin(format: prefs.csv)
+    func startRecording() async throws {
+        guard !recording, !recordingClosing else { return }
+        let withNotes = prefs.voiceNotes
+        if withNotes { try await VoiceNotes.authorize() }          // asks once; refused -> nothing is recorded
+        let u = try recorder.begin(format: prefs.csv, notes: withNotes)
+        voiceHeard = ""
+        voiceNotes = 0
+        if withNotes {
+            voice.onPhrase = { [weak self] p in
+                guard let self else { return }
+                self.recorder.add(p)
+                self.voiceNotes = self.recorder.notes
+            }
+            voice.onHeard = { [weak self] text in self?.voiceHeard = text }
+            do {
+                try voice.start()
+            } catch {
+                recorder.end()
+                try? FileManager.default.removeItem(at: u)
+                throw error
+            }
+            voiceListening = true
+        }
         recording = true
         recordingURL = u
         recordingRows = 0
         recordingStart = recorder.start
-        event("recording to \(u.lastPathComponent)")
+        event("recording to \(u.lastPathComponent)" + (withNotes ? " with voice notes" : ""))
     }
 
     func stopRecording() {
-        let u = recorder.end()
+        guard recording else { return }
         recording = false
-        if let u { event("recording stopped: \(recorder.rows) rows in \(u.lastPathComponent)") }
+        recordingClosing = true                                    // no more readings; the last phrase may follow
+        voice.stop { [weak self] in
+            guard let self else { return }
+            let u = self.recorder.end()
+            self.voiceListening = false
+            self.recordingClosing = false
+            if let u {
+                self.event("recording stopped: \(self.recorder.rows) rows"
+                           + (self.recorder.notes > 0 ? ", \(self.recorder.notes) voice notes" : "") + " in \(u.lastPathComponent)")
+            }
+        }
     }
 
     func resetStats() { session.resetStats() }

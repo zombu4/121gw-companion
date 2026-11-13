@@ -33,6 +33,7 @@ struct Preferences: Codable, Equatable {
     var linkPaces: [String: Int] = [:]            // link 2 block pace per meter, measured by this app version
     var linkPacesBy = ""
     var derived = DerivedOptions()                // loop range, Pt type, limits of the derived values
+    var voiceNotes = false                        // recordings listen and write what is said into a "note" column
 
     init() {}
 
@@ -51,6 +52,7 @@ struct Preferences: Codable, Equatable {
         linkPaces = (try? c.decode([String: Int].self, forKey: .linkPaces)) ?? [:]
         linkPacesBy = (try? c.decode(String.self, forKey: .linkPacesBy)) ?? ""
         derived = (try? c.decode(DerivedOptions.self, forKey: .derived)) ?? DerivedOptions()
+        voiceNotes = (try? c.decode(Bool.self, forKey: .voiceNotes)) ?? def.voiceNotes
     }
 
     var csv: CSVFormat { CSVFormat(rawValue: csvFormat) ?? .comma }
