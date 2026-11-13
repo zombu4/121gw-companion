@@ -74,6 +74,7 @@ final class MeterController: ObservableObject {
     @Published private(set) var recordingStart: Date?
     @Published private(set) var voiceListening = false     // voice notes: the microphone is on for this recording
     @Published private(set) var voiceHeard = ""            // the words heard last
+    @Published private(set) var voiceStatus = ""           // e.g. the one-time download of the speech model
     @Published private(set) var voiceNotes = 0             // phrases written into this recording
     @Published private(set) var recordingClosing = false   // stopped: waiting for the last phrase before closing
     @Published private(set) var statusFrames = 0
@@ -660,9 +661,12 @@ final class MeterController: ObservableObject {
                 self.voiceNotes = self.recorder.notes
             }
             voice.onHeard = { [weak self] text in self?.voiceHeard = text }
+            voice.onStatus = { [weak self] s in self?.voiceStatus = s }
             do {
-                try voice.start()
+                try await voice.start()
+                voiceStatus = ""
             } catch {
+                voiceStatus = ""
                 recorder.end()
                 try? FileManager.default.removeItem(at: u)
                 throw error

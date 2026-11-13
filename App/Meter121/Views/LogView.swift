@@ -50,6 +50,9 @@ struct LogView: View {
             }
             .tint(Bench.yellow)
             .disabled(meter.recording || meter.recordingClosing)
+            if !meter.voiceStatus.isEmpty {
+                Text(meter.voiceStatus).font(.footnote).foregroundStyle(Bench.dim(scheme))
+            }
             if meter.voiceListening {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "mic.fill").foregroundStyle(Bench.yellow)

@@ -17,7 +17,8 @@ Review note (App Review Information, Notes):
 Review note, version 1.1 (added):
 
 > Version 1.1 adds voice notes: on the Log page, switch "Voice notes" on and press Record; what the user says while
-> recording is recognised on the device (SFSpeechRecognizer with requiresOnDeviceRecognition) and written into a
+> recording is recognised on the device (SpeechAnalyzer with SpeechTranscriber on iOS 26 and newer,
+> SFSpeechRecognizer with requiresOnDeviceRecognition before) and written into a
 > "note" column of the CSV recording. The microphone is used only while a recording with voice notes runs; the
 > "audio" background mode keeps it listening when the screen locks during such a recording. No audio is stored or
 > sent.
