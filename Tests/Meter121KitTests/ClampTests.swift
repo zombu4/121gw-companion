@@ -72,6 +72,20 @@ final class ClampTests: XCTestCase {
         check(shown(1, 0, 2534, 7), "0.2534", "V", 0.2534)
     }
 
+    func testRelPast99999MovesThePointFirst() {
+        check(shown(3, 0, 106000, 3), "1.0600", "A", 1.06)            // DCmV range 0 at 100 mV/A
+        XCTAssertEqual(Display.decode(frame(1, 1, 106000, clamp: 1)).text, "OFL")   // 106000 A
+        let r = Display.decode(frame(1, 1, 123456, clamp: 1))
+        XCTAssertEqual(r.text, "OFL")
+        XCTAssertNil(r.value)
+    }
+
+    func testAnotherRatioIsAnotherStatisticsKey() {
+        let a = Display.decode(frame(1, 0, 2534, clamp: 1)), b = Display.decode(frame(1, 0, 2534, clamp: 2))
+        XCTAssertEqual([a.unit, b.unit], ["A", "A"])
+        XCTAssertNotEqual(a.scaleKey, b.scaleKey)
+    }
+
     func testSettingsRow() {
         let s = MeterSettings.table.first { $0.id == 0x520 }!
         XCTAssertEqual(s.code, "CLP")

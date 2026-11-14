@@ -36,9 +36,10 @@ public struct Reading: Equatable, Sendable {
     public var symbols: [String]
     public var bar: Bargraph
     public var raw: [UInt8]
+    public var clamp: Int = 0      // the clamp ratio code 1..4 of a reading shown in amperes, else 0
 
-    /// mode / unit / range: the key the statistics and the trend restart on.
-    public var scaleKey: String { "\(mode)/\(unit)/\(range)" }
+    /// mode / unit / range / clamp code: the key the statistics and the trend restart on (another ratio restarts too).
+    public var scaleKey: String { "\(mode)/\(unit)/\(range)/\(clamp)" }
 }
 
 public enum Display {
@@ -94,6 +95,11 @@ public enum Display {
         guard let rows = table[mode], rng < rows.count else { return (nil, nil, "", nil) }
         var (dp, unit) = (rows[rng].0, rows[rng].1 ?? "")
         if mode == 5 { unit = f[6] & 0x20 != 0 ? "°C" : f[6] & 0x10 != 0 ? "°F" : "" }
+        let ovl = f[6] & 0x80 != 0                                // overload: value bytes are stale
+        if mag > 99999 && !ovl {                                  // only through REL: trunc(D/10), dp - 1; first, as
+            mag /= 10                                             // the clamp view moves this point (ui_clamp_dpos)
+            dp = max(dp - 1, 0)
+        }
         let code = clampCode(f, mode)
         var fits = true
         if code != 0 {
@@ -101,12 +107,8 @@ public enum Display {
             unit = u
             if let shown { dp = shown } else { fits = false }
         }
-        if f[6] & 0x80 != 0 { return ("OFL", nil, unit, dp) }     // overload: value bytes are stale
+        if ovl { return ("OFL", nil, unit, dp) }
         if !fits { return ("OFL", nil, unit, nil) }                // clamp: the current does not fit the five digits
-        if mag > 99999 {                                          // only through REL: trunc(D/10), dp - 1
-            mag /= 10
-            dp = max(dp - 1, 0)
-        }
         var text = fixed(mag, dp)
         var value = Double(mag) / pow10(dp)
         if neg {
@@ -218,6 +220,7 @@ public enum Display {
         let (label, subText, subUnit) = sub(f, mode)
         return Reading(t: t, mode: mode, modeName: mode < modes.count ? modes[mode] : "mode \(mode)", range: rng,
                        text: text ?? "-----", value: value, unit: unit, dp: dp, overload: text == "OFL",
-                       subLabel: label, subText: subText, subUnit: subUnit, symbols: symbols(f), bar: bar(f), raw: f)
+                       subLabel: label, subText: subText, subUnit: subUnit, symbols: symbols(f), bar: bar(f), raw: f,
+                       clamp: clampCode(f, mode))
     }
 }

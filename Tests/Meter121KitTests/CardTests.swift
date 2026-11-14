@@ -182,6 +182,8 @@ final class CardTests: XCTestCase {
             XCTFail("clamp code 5 changed")
         } catch {}
         XCTAssertEqual(m.raw[0x020], 0xA0)
+        _ = try await s.put(0x520, 0)                      // CLP itself replaces the bad code
+        XCTAssertEqual(m.raw[0x020], 0x00)
     }
 
     func testDiagnosisText() {

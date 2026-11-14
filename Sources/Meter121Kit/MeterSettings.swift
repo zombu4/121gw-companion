@@ -234,8 +234,10 @@ public final class SettingsClient {
         }
         let raw = try await rawAll()
         guard let cur = raw[s.wire] else { throw CardError("the meter does not report \(s.code)") }
-        // the firmware refuses a clamp code above 4 (F-1.35) or any bit above bit 4 (older): checked before the merge
-        if s.wire == MeterSettings.b20 && (cur >> 5 > (clamp ? 4 : 0) || (s.code != "tr" && (cur >> 1) & 3 == 3)) {
+        // the firmware refuses a clamp code above 4 (F-1.35) or any bit above bit 4 (older): checked before the merge,
+        // except for CLP itself, whose merge replaces the code
+        if s.wire == MeterSettings.b20 && ((s.id != MeterSettings.clampID && cur >> 5 > (clamp ? 4 : 0))
+                                           || (s.code != "tr" && (cur >> 1) & 3 == 3)) {
             throw CardError(String(format: "%@: the meter reports the value 0x%02X of its shared setting, which it would refuse; set the logging trigger (tr) first", s.code, cur))
         }
         let send = MeterSettings.merge(s, cur, value)
