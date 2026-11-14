@@ -4,7 +4,7 @@
 //     0x16 GET    -                   answer: field = count, data = id:u16 value:u8 entries
 //     0x17 PUT    id:u16 value:u8     answer: field = id, data = the value now in effect
 // F-1.33 on: GET start:u8 max:u8 flags:u8 = 1 answers id:u16 value:u16 entries, and PUT id:u16 value:u16.
-// The id 0x020 is one byte with four fields (REL view, trigger, clock, anti-hunting), shown as rows 0x120..0x420; a
+// The id 0x020 is one byte with five fields (REL view, trigger, clock, anti-hunting, clamp), shown as rows 0x120..0x520; a
 // change of one row is a read-modify-write here.  Every PUT is compared with its answer and read back.
 
 import Foundation
@@ -32,7 +32,7 @@ public struct SettingItem: Equatable, Identifiable, Sendable {
 public enum MeterSettings {
     public static let tGet: UInt8 = 0x16, tPut: UInt8 = 0x17
     public static let b20 = 0x020
-    public static let huntID = 0x420, buzzerID = 0x01E, contID = 0x014
+    public static let huntID = 0x420, clampID = 0x520, buzzerID = 0x01E, contID = 0x014
     public static let getPageFirst = 8, getRetries = 8, getPageWait = 3.0
     public static let textsMax = 101
     public static let units: [String: (String, Double)] = ["Ch": ("", 1), "th": ("ohm", 1), "HY": ("ohm", 0.1)]
@@ -62,6 +62,8 @@ public enum MeterSettings {
         s(0x220, "tr", "Logging trigger", 0, 2, ["interval", "on change", "on limit verdict"], wire: b20, shift: 1, mask: 0x03),
         s(0x320, "CL", "Clock", 0, 1, ["24 hour", "12 hour"], wire: b20, shift: 3, mask: 0x01),
         s(0x420, "HUnt", "Capacitance anti-hunting", 0, 1, ["off", "on"], wire: b20, shift: 4, mask: 0x01),
+        s(0x520, "CLP", "Current clamp ratio (DCV, ACV, DCmV, ACmV show amps)", 0, 4,
+          ["off", "1 mV/A", "10 mV/A", "100 mV/A", "1 V/A"], wire: b20, shift: 5, mask: 0x07),   // F-1.35 on (issue 39)
         s(0x021, "bH", "Continuity beep hold (BEEP)", 0, 3, ["100 ms", "50 ms", "25 ms", "off (15 ms)"]),
         s(0x022, "Ch", "Logging change threshold", 1, 255),
         s(0x023, "bAt", "Battery type", 0, 1, ["alkaline (4.1 V)", "NiMH (4.7 V)"]),
@@ -135,14 +137,16 @@ public enum MeterSettings {
 }
 
 /// Read and change the meter's settings.  `hunt` (F-1.16), `quiet` (F-1.24), `paged` (old module, F-1.25),
-/// `userCont` (F-1.33): what the connected firmware knows.
+/// `userCont` (F-1.33), `clamp` (F-1.35): what the connected firmware knows.
 public final class SettingsClient {
     let c: CardClient
-    let hunt: Bool, quiet: Bool, paged: Bool, userCont: Bool
+    let hunt: Bool, quiet: Bool, paged: Bool, userCont: Bool, clamp: Bool
 
-    public init(client: CardClient, hunt: Bool = true, quiet: Bool = true, paged: Bool = false, userCont: Bool = true) {
+    public init(client: CardClient, hunt: Bool = true, quiet: Bool = true, paged: Bool = false, userCont: Bool = true,
+                clamp: Bool = true) {
         c = client
         self.hunt = hunt
+        self.clamp = clamp
         self.quiet = quiet
         self.paged = paged
         self.userCont = userCont
@@ -152,6 +156,7 @@ public final class SettingsClient {
         MeterSettings.table.compactMap { d in
             var s = d
             if s.id == MeterSettings.huntID && !hunt { return nil }
+            if s.id == MeterSettings.clampID && !clamp { return nil }   // older firmware refuses 0x020 values above 31
             if s.id == MeterSettings.buzzerID && !quiet {
                 s.max = 1
                 s.choices = Array(s.choices!.prefix(2))
@@ -229,7 +234,10 @@ public final class SettingsClient {
         }
         let raw = try await rawAll()
         guard let cur = raw[s.wire] else { throw CardError("the meter does not report \(s.code)") }
-        if s.wire == MeterSettings.b20 && (cur > 31 || (s.code != "tr" && (cur >> 1) & 3 == 3)) {
+        // the firmware refuses a clamp code above 4 (F-1.35) or any bit above bit 4 (older): checked before the merge,
+        // except for CLP itself, whose merge replaces the code
+        if s.wire == MeterSettings.b20 && ((s.id != MeterSettings.clampID && cur >> 5 > (clamp ? 4 : 0))
+                                           || (s.code != "tr" && (cur >> 1) & 3 == 3)) {
             throw CardError(String(format: "%@: the meter reports the value 0x%02X of its shared setting, which it would refuse; set the logging trigger (tr) first", s.code, cur))
         }
         let send = MeterSettings.merge(s, cur, value)

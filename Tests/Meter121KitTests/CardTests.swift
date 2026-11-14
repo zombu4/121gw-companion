@@ -63,7 +63,7 @@ final class FakeMeter {
         case MeterSettings.tPut:
             let id = Int(pl[0]) | Int(pl[1]) << 8
             let v = pl.count == 4 ? Int(pl[2]) | Int(pl[3]) << 8 : Int(pl[2])
-            if id == 0x020 && ((v >> 1) & 3 == 3 || v > 31) { return answer(seq, 0x22) }
+            if id == 0x020 && ((v >> 1) & 3 == 3 || v >> 5 > 4) { return answer(seq, 0x22) }   // F-1.35: clamp code 0..4
             raw[id] = v
             answer(seq, 0, id, pl.count == 4 ? [UInt8(v & 0xFF), UInt8(v >> 8)] : [UInt8(v)])
         default:
@@ -162,6 +162,28 @@ final class CardTests: XCTestCase {
         let old = SettingsClient(client: m.client, hunt: false, quiet: false, userCont: false)
         XCTAssertFalse(old.rows().contains { $0.code == "HUnt" || $0.code == "th" })
         XCTAssertEqual(old.rows().first { $0.id == 0x01E }?.max, 1)
+    }
+
+    func testClampCodeInTheSharedByte() async throws {
+        let m = fake()
+        let s = SettingsClient(client: m.client)
+        _ = try await s.put(0x520, 3)                      // clamp 100 mV/A: bits 7..5, the other fields stay
+        XCTAssertEqual(m.raw[0x020], 0b0110_1010)
+        _ = try await s.put(0x120, 1)                      // REL view with the clamp set
+        XCTAssertEqual(m.raw[0x020], 0b0110_1011)
+        let old = SettingsClient(client: m.client, clamp: false)
+        do {                                               // before F-1.35 a value above 31 is not changed
+            _ = try await old.put(0x420, 1)
+            XCTFail("value above 31 changed without the clamp")
+        } catch {}
+        m.raw[0x020] = 0xA0                                // code 5: the meter would refuse the whole value
+        do {
+            _ = try await s.put(0x420, 1)
+            XCTFail("clamp code 5 changed")
+        } catch {}
+        XCTAssertEqual(m.raw[0x020], 0xA0)
+        _ = try await s.put(0x520, 0)                      // CLP itself replaces the bad code
+        XCTAssertEqual(m.raw[0x020], 0x00)
     }
 
     func testDiagnosisText() {

@@ -48,6 +48,7 @@ public enum Feature: CaseIterable, Sendable {
     case link2               // F-1.31: link 2 blocks (key codes 0xA8, 0xAA..0xB2)
     case packed              // F-1.32: READZ and packed page Ld transfers
     case userContinuity      // F-1.33: continuity codes 16 / 17, settings 0x02D and 0x02F
+    case clamp               // F-1.35: setting 0x020 bits 7..5 (CLP), clamp code in status byte 13 (issue 39)
 
     public var since: Version {
         switch self {
@@ -62,6 +63,7 @@ public enum Feature: CaseIterable, Sendable {
         case .link2: Version(1, 3, 1)
         case .packed: Version(1, 3, 2)
         case .userContinuity: Version(1, 3, 3)
+        case .clamp: Version(1, 3, 5)
         }
     }
 }

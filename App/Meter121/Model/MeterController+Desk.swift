@@ -147,7 +147,7 @@ extension MeterController {
 
     func settingsClient(_ c: CardClient) -> SettingsClient {
         SettingsClient(client: c, hunt: has(.hunt), quiet: has(.quiet), paged: carefulWanted && has(.linkAdapt),
-                       userCont: has(.userContinuity))
+                       userCont: has(.userContinuity), clamp: has(.clamp))
     }
 
     func settingsGet() async {

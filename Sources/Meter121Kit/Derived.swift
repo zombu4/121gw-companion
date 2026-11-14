@@ -67,8 +67,8 @@ public struct Derived: Sendable {
 
     public var options = DerivedOptions()
     private var last: Reading?
-    private var abs_: (Int, String, Double)?
-    private var ref: (Int, String, Double)?
+    private var abs_: (Int, String, Double, Int)?      // (mode, quantity, base value, clamp code)
+    private var ref: (Int, String, Double, Int)?
     private var relOn = false
 
     public init() {}
@@ -90,9 +90,9 @@ public struct Derived: Sendable {
         return (lo + hi) / 2
     }
 
-    static func base(_ r: Reading) -> (Int, String, Double)? {
+    static func base(_ r: Reading) -> (Int, String, Double, Int)? {
         guard let v = r.value, let s = DerivedUnits.scale(r.unit) else { return nil }
-        return (r.mode, s.0, v * s.1)
+        return (r.mode, s.0, v * s.1, r.clamp)
     }
 
     /// Track REL from every decoded reading, in order.
@@ -107,16 +107,16 @@ public struct Derived: Sendable {
         }
         if !relOn {                                     // REL has just gone on: the reference is the reading before
             relOn = true
-            if let a = abs_, let b, a.0 == b.0, a.1 == b.1 { ref = a } else { ref = nil }
-        } else if let rf = ref, b == nil || rf.0 != b!.0 || rf.1 != b!.1 {
-            ref = nil                                   // mode or quantity changed while REL stayed on
+            if let a = abs_, let b, a.0 == b.0, a.1 == b.1, a.3 == b.3 { ref = a } else { ref = nil }
+        } else if let rf = ref, b == nil || rf.0 != b!.0 || rf.1 != b!.1 || rf.3 != b!.3 {
+            ref = nil                                   // mode, quantity or clamp ratio changed while REL stayed on
         }
     }
 
     public func values() -> DerivedValues {
         var out = DerivedValues()
         guard let r = last, let b = Self.base(r) else { return out }
-        let (mode, quantity, v) = b
+        let (mode, quantity, v, _) = b
         let rel = r.symbols.contains("REL")
         if rel, let rf = ref, rf.2 != 0 { out.relPct = v / rf.2 * 100 }
         if Self.dcCurrentModes.contains(mode) && !rel {

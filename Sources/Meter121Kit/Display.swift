@@ -36,9 +36,10 @@ public struct Reading: Equatable, Sendable {
     public var symbols: [String]
     public var bar: Bargraph
     public var raw: [UInt8]
+    public var clamp: Int = 0      // the clamp ratio code 1..4 of a reading shown in amperes, else 0
 
-    /// mode / unit / range: the key the statistics and the trend restart on.
-    public var scaleKey: String { "\(mode)/\(unit)/\(range)" }
+    /// mode / unit / range / clamp code: the key the statistics and the trend restart on (another ratio restarts too).
+    public var scaleKey: String { "\(mode)/\(unit)/\(range)/\(clamp)" }
 }
 
 public enum Display {
@@ -94,11 +95,20 @@ public enum Display {
         guard let rows = table[mode], rng < rows.count else { return (nil, nil, "", nil) }
         var (dp, unit) = (rows[rng].0, rows[rng].1 ?? "")
         if mode == 5 { unit = f[6] & 0x20 != 0 ? "°C" : f[6] & 0x10 != 0 ? "°F" : "" }
-        if f[6] & 0x80 != 0 { return ("OFL", nil, unit, dp) }     // overload: value bytes are stale
-        if mag > 99999 {                                          // only through REL: trunc(D/10), dp - 1
-            mag /= 10
+        let ovl = f[6] & 0x80 != 0                                // overload: value bytes are stale
+        if mag > 99999 && !ovl {                                  // only through REL: trunc(D/10), dp - 1; first, as
+            mag /= 10                                             // the clamp view moves this point (ui_clamp_dpos)
             dp = max(dp - 1, 0)
         }
+        let code = clampCode(f, mode)
+        var fits = true
+        if code != 0 {
+            let (shown, u) = clampPoint(dp, mode, code)
+            unit = u
+            if let shown { dp = shown } else { fits = false }
+        }
+        if ovl { return ("OFL", nil, unit, dp) }
+        if !fits { return ("OFL", nil, unit, nil) }                // clamp: the current does not fit the five digits
         var text = fixed(mag, dp)
         var value = Double(mag) / pow10(dp)
         if neg {
@@ -183,6 +193,26 @@ public enum Display {
                         label: ["5", "50", "500", "1000"][Int(f[13] & 0x03)])
     }
 
+    // Current clamp (firmware F-1.35, GitHub issue 39; SETUP page CLP): in DCV, ACV, DCmV and ACmV the meter shows the
+    // clamp's voltage as current.  The frame keeps the volt counts, mode and range; byte [13] bits 7..5 carry the ratio
+    // code: 1 = 1 mV/A, 2 = 10 mV/A, 3 = 100 mV/A, 4 = 1 V/A (0 off).  The point moves by clampShift[code] places (three
+    // fewer in the mV modes); more than 4 places -> mA, fewer than none -> the meter shows its overload text OFL.
+    static let clampShift: [Int: Int] = [1: 3, 2: 2, 3: 1, 4: 0]
+
+    /// The clamp ratio code of the frame (1...4), or 0 when the meter shows volts.
+    public static func clampCode(_ f: [UInt8], _ mode: Int) -> Int {
+        let code = Int(f[13] >> 5) & 7
+        return (1...4).contains(mode) && clampShift[code] != nil ? code : 0
+    }
+
+    /// (digits after the point, unit) of a clamp reading; nil digits when it does not fit the display (OFL).
+    static func clampPoint(_ dp: Int, _ mode: Int, _ code: Int) -> (Int?, String) {
+        let shown = dp - (clampShift[code]! - (mode == 3 || mode == 4 ? 3 : 0))
+        if shown < 0 { return (nil, "A") }
+        if shown > 4 { return (shown - 3, "mA") }
+        return (shown, "A")
+    }
+
     /// Reading of a checked 19-byte status frame received at time t.
     public static func decode(_ f: [UInt8], at t: Date = Date()) -> Reading {
         let mode = Int(f[5] & 0x3F), rng = Int(f[6] & 0x0F)
@@ -190,6 +220,7 @@ public enum Display {
         let (label, subText, subUnit) = sub(f, mode)
         return Reading(t: t, mode: mode, modeName: mode < modes.count ? modes[mode] : "mode \(mode)", range: rng,
                        text: text ?? "-----", value: value, unit: unit, dp: dp, overload: text == "OFL",
-                       subLabel: label, subText: subText, subUnit: subUnit, symbols: symbols(f), bar: bar(f), raw: f)
+                       subLabel: label, subText: subText, subUnit: subUnit, symbols: symbols(f), bar: bar(f), raw: f,
+                       clamp: clampCode(f, mode))
     }
 }
