@@ -94,7 +94,15 @@ public enum Display {
         guard let rows = table[mode], rng < rows.count else { return (nil, nil, "", nil) }
         var (dp, unit) = (rows[rng].0, rows[rng].1 ?? "")
         if mode == 5 { unit = f[6] & 0x20 != 0 ? "°C" : f[6] & 0x10 != 0 ? "°F" : "" }
+        let code = clampCode(f, mode)
+        var fits = true
+        if code != 0 {
+            let (shown, u) = clampPoint(dp, mode, code)
+            unit = u
+            if let shown { dp = shown } else { fits = false }
+        }
         if f[6] & 0x80 != 0 { return ("OFL", nil, unit, dp) }     // overload: value bytes are stale
+        if !fits { return ("OFL", nil, unit, nil) }                // clamp: the current does not fit the five digits
         if mag > 99999 {                                          // only through REL: trunc(D/10), dp - 1
             mag /= 10
             dp = max(dp - 1, 0)
@@ -181,6 +189,26 @@ public enum Display {
         if f[13] & 0x10 != 0 { return Bargraph(shown: false, lit: 0, negative: false, label: "") }
         return Bargraph(shown: true, lit: min(Int(f[14]), 25) + 1, negative: f[13] & 0x04 != 0,
                         label: ["5", "50", "500", "1000"][Int(f[13] & 0x03)])
+    }
+
+    // Current clamp (firmware F-1.35, GitHub issue 39; SETUP page CLP): in DCV, ACV, DCmV and ACmV the meter shows the
+    // clamp's voltage as current.  The frame keeps the volt counts, mode and range; byte [13] bits 7..5 carry the ratio
+    // code: 1 = 1 mV/A, 2 = 10 mV/A, 3 = 100 mV/A, 4 = 1 V/A (0 off).  The point moves by clampShift[code] places (three
+    // fewer in the mV modes); more than 4 places -> mA, fewer than none -> the meter shows its overload text OFL.
+    static let clampShift: [Int: Int] = [1: 3, 2: 2, 3: 1, 4: 0]
+
+    /// The clamp ratio code of the frame (1...4), or 0 when the meter shows volts.
+    public static func clampCode(_ f: [UInt8], _ mode: Int) -> Int {
+        let code = Int(f[13] >> 5) & 7
+        return (1...4).contains(mode) && clampShift[code] != nil ? code : 0
+    }
+
+    /// (digits after the point, unit) of a clamp reading; nil digits when it does not fit the display (OFL).
+    static func clampPoint(_ dp: Int, _ mode: Int, _ code: Int) -> (Int?, String) {
+        let shown = dp - (clampShift[code]! - (mode == 3 || mode == 4 ? 3 : 0))
+        if shown < 0 { return (nil, "A") }
+        if shown > 4 { return (shown - 3, "mA") }
+        return (shown, "A")
     }
 
     /// Reading of a checked 19-byte status frame received at time t.
