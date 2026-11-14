@@ -221,10 +221,10 @@ final class MeterController: ObservableObject {
         case .status:
             let r = Display.decode(f.bytes, at: t)
             session.add(r)
-            if !recordingClosing { recorder.add(r) }
             derivedState.options = prefs.derived
             derivedState.feed(r)
             derived = derivedState.values()
+            if !recordingClosing { recorder.add(r, verdict: derived.verdict) }     // the trigger needs the verdict
             if recording { recordingRows = recorder.rows }
             statusFrames += 1
             if stFirst == nil { stFirst = t }
@@ -651,7 +651,9 @@ final class MeterController: ObservableObject {
         guard !recording, !recordingClosing else { return }
         let withNotes = prefs.voiceNotes
         if withNotes { try await VoiceNotes.authorize() }          // asks once; refused -> nothing is recorded
-        let u = try recorder.begin(format: prefs.csv, notes: withNotes)
+        let trigger = LogTrigger(mode: prefs.logTrigger == .voice && !withNotes ? .every : prefs.logTrigger,
+                                 interval: prefs.triggerInterval, threshold: prefs.triggerChange)
+        let u = try recorder.begin(format: prefs.csv, notes: withNotes, trigger: trigger)
         voiceHeard = ""
         voiceNotes = 0
         if withNotes {
@@ -677,7 +679,8 @@ final class MeterController: ObservableObject {
         recordingURL = u
         recordingRows = 0
         recordingStart = recorder.start
-        event("recording to \(u.lastPathComponent)" + (withNotes ? " with voice notes" : ""))
+        event("recording to \(u.lastPathComponent)" + (withNotes ? " with voice notes" : "")
+              + (trigger.mode == .every ? "" : ", rows \(trigger.mode.label)"))
     }
 
     func stopRecording() {

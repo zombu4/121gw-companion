@@ -153,16 +153,25 @@ extension MeterController {
     func settingsGet() async {
         settings.error = nil
         do {
-            settings.items = try await ops("settings") { _ in try await self.settingsClient(self.cardClient()).getAll() }
+            let (items, interval) = try await ops("settings") { _ in try await self.settingsClient(self.cardClient()).read() }
+            settings.items = items
+            rememberLogging(items, interval: interval)
         } catch {
             settings.error = error.localizedDescription
         }
+    }
+
+    /// The meter's logging interval In and change threshold Ch, kept as the starting values of the Log page's trigger.
+    private func rememberLogging(_ items: [SettingItem], interval: Int?) {
+        if let ch = items.first(where: { $0.id == MeterSettings.changeID }) { prefs.meterLogChange = ch.value }
+        if let interval { prefs.meterLogInterval = interval }
     }
 
     func settingsPut(_ id: Int, _ value: Int) async {
         settings.error = nil
         do {
             settings.items = try await ops("settings") { _ in try await self.settingsClient(self.cardClient()).put(id, value) }
+            rememberLogging(settings.items, interval: nil)
             if let i = settings.items.first(where: { $0.id == id }) { event("setting \(i.code) set to \(i.text)") }
         } catch {
             settings.error = error.localizedDescription

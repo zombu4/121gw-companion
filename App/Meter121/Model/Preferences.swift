@@ -34,6 +34,11 @@ struct Preferences: Codable, Equatable {
     var linkPacesBy = ""
     var derived = DerivedOptions()                // loop range, Pt type, limits of the derived values
     var voiceNotes = false                        // recordings listen and write what is said into a "note" column
+    var logTrigger = LogTriggerMode.every         // which readings get a CSV row (LogTrigger.swift)
+    var logInterval: Int?                         // the user's interval (s) and threshold (counts); nil: not changed by the user
+    var logChange: Int?
+    var meterLogInterval: Int?                    // the meter's In and Ch as of the last settings read
+    var meterLogChange: Int?
 
     init() {}
 
@@ -53,7 +58,16 @@ struct Preferences: Codable, Equatable {
         linkPacesBy = (try? c.decode(String.self, forKey: .linkPacesBy)) ?? ""
         derived = (try? c.decode(DerivedOptions.self, forKey: .derived)) ?? DerivedOptions()
         voiceNotes = (try? c.decode(Bool.self, forKey: .voiceNotes)) ?? def.voiceNotes
+        logTrigger = (try? c.decode(LogTriggerMode.self, forKey: .logTrigger)) ?? def.logTrigger
+        logInterval = try? c.decode(Int.self, forKey: .logInterval)
+        logChange = try? c.decode(Int.self, forKey: .logChange)
+        meterLogInterval = try? c.decode(Int.self, forKey: .meterLogInterval)
+        meterLogChange = try? c.decode(Int.self, forKey: .meterLogChange)
     }
+
+    /// Interval (s) and threshold (counts) of the trigger: the user's value, else the meter's as last read, else the default.
+    var triggerInterval: Int { logInterval ?? meterLogInterval ?? LogTrigger.defaultInterval }
+    var triggerChange: Int { logChange ?? meterLogChange ?? LogTrigger.defaultThreshold }
 
     var csv: CSVFormat { CSVFormat(rawValue: csvFormat) ?? .comma }
 

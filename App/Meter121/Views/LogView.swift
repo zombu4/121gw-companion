@@ -1,6 +1,7 @@
-// LOG: start / stop a CSV recording of every reading, and the recordings in Documents/121GW (also in the Files app
-// under "On My iPhone > 121GW"), each to share or delete.  Voice notes: what is said while recording goes into a
-// "note" column of the file, recognised on the iPhone (VoiceNotes.swift).
+// LOG: start / stop a CSV recording of the readings, and the recordings in Documents/121GW (also in the Files app
+// under "On My iPhone > 121GW"), each to share or delete.  Trigger: which readings get a row, by the meter's own rules
+// (interval, on change, on limit verdict) or by voice (LogTrigger.swift; issue 40).  Voice notes: what is said while
+// recording goes into a "note" column of the file, recognised on the iPhone (VoiceNotes.swift).
 
 import Meter121Kit
 import SwiftUI
@@ -23,7 +24,7 @@ struct LogView: View {
                              + (meter.recordingStart.map { " since " + $0.formatted(date: .omitted, time: .standard) } ?? ""))
                             .font(.footnote).monospacedDigit().foregroundStyle(Bench.dim(scheme))
                     } else {
-                        Text("Every reading with its time goes to a CSV file.").font(.footnote).foregroundStyle(Bench.dim(scheme))
+                        Text("The readings the trigger below picks, with their time, go to a CSV file.").font(.footnote).foregroundStyle(Bench.dim(scheme))
                     }
                 }
                 Spacer()
@@ -50,6 +51,7 @@ struct LogView: View {
             }
             .tint(Bench.yellow)
             .disabled(meter.recording || meter.recordingClosing)
+            trigger
             if !meter.voiceStatus.isEmpty {
                 Text(meter.voiceStatus).font(.footnote).foregroundStyle(Bench.dim(scheme))
             }
@@ -85,6 +87,9 @@ struct LogView: View {
             }
         }
         .onAppear(perform: refresh)
+        .onChange(of: meter.prefs.voiceNotes) { _, on in
+            if !on && meter.prefs.logTrigger == .voice { meter.prefs.logTrigger = .every }   // voice needs the notes
+        }
         .onChange(of: meter.recording) { _, _ in refresh() }
         .onChange(of: meter.recordingClosing) { _, _ in refresh() }
         .confirmationDialog("Delete this recording?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } }),
@@ -96,6 +101,62 @@ struct LogView: View {
             }
         } message: {
             Text(toDelete?.lastPathComponent ?? "")
+        }
+    }
+
+    /// The trigger: which readings get a row.  The interval and the threshold start from the meter's In and Ch (last
+    /// settings read), else 1 s and 10; what the user types stays.
+    @ViewBuilder private var trigger: some View {
+        let mode = meter.prefs.logTrigger
+        let busy = meter.recording || meter.recordingClosing
+        Hairline()
+        Picker("Trigger", selection: Binding(get: { meter.prefs.logTrigger }, set: {
+            meter.prefs.logTrigger = $0
+            if $0 == .voice { meter.prefs.voiceNotes = true }       // on voice needs the voice notes: this switches them on
+        })) {
+            ForEach(LogTriggerMode.allCases, id: \.self) { Text($0.label).tag($0) }
+        }
+        .disabled(busy)
+        if mode == .interval || mode == .change || mode == .limit {
+            numberField(mode == .interval ? "Interval (s, 0 = every reading)" : "Also every (s, 0 = off)", 0...999,
+                        Binding(get: { meter.prefs.triggerInterval }, set: { meter.prefs.logInterval = $0 }))
+        }
+        if mode == .change {
+            numberField("Threshold (counts)", 1...255, Binding(get: { meter.prefs.triggerChange }, set: { meter.prefs.logChange = $0 }))
+        }
+        Text(triggerHelp(mode)).font(.footnote).foregroundStyle(Bench.dim(scheme))
+        if mode == .limit && meter.prefs.derived.limit == nil {
+            Text("No limit is set (Live page, Derived, Options): there is no verdict, so only the first reading"
+                 + (meter.prefs.triggerInterval > 0 ? " and a row every \(meter.prefs.triggerInterval) s are written." : " is written."))
+                .font(.footnote).foregroundStyle(Bench.bad)
+        }
+        Hairline()
+    }
+
+    private func numberField(_ title: String, _ range: ClosedRange<Int>, _ value: Binding<Int>) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            TextField("", value: Binding(get: { value.wrappedValue }, set: { value.wrappedValue = min(max($0, range.lowerBound), range.upperBound) }),
+                      format: .number.grouping(.never))
+                .keyboardType(.numberPad).multilineTextAlignment(.trailing).frame(width: 80).monospacedDigit()
+        }
+        .disabled(meter.recording || meter.recordingClosing)
+    }
+
+    private func triggerHelp(_ mode: LogTriggerMode) -> String {
+        let p = meter.prefs
+        switch mode {
+        case .every: return "A row for every reading."
+        case .interval: return "A row every \(p.triggerInterval) s" + (p.triggerInterval == 0 ? " (every reading)." : ".")
+        case .change:
+            return "A row when the reading has changed by \(p.triggerChange) counts (the displayed digits) since the last row, "
+                + "checked once a second; a change of mode, unit or range, or between a number and OFL, counts too"
+                + (p.triggerInterval > 0 ? ". Also a row every \(p.triggerInterval) s." : ".")
+        case .limit:
+            return "A row when the verdict (PASS / HI / LO of your limits) changes" + (p.triggerInterval > 0
+                ? ". Also a row every \(p.triggerInterval) s while the reading is outside the limits." : ".")
+        case .voice: return "A row only where a spoken sentence is placed, with its note; switches the voice notes on."
         }
     }
 

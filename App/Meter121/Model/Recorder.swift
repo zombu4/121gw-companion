@@ -1,6 +1,7 @@
-// CSV recording of every reading with its time (companion record.Session.start_recording), into the app's
-// Documents/121GW folder, which the Files app shows ("On My iPhone > 121GW").  With voice notes the file has a "note"
-// column: the rows go through a NotePlacer, which holds them a few seconds so a phrase lands in its row.
+// CSV recording of the readings with their time (companion record.Session.start_recording), into the app's
+// Documents/121GW folder, which the Files app shows ("On My iPhone > 121GW").  Which readings get a row is the logging
+// trigger's choice (LogTrigger.swift; by default every reading).  With voice notes the file has a "note" column: the rows
+// go through a NotePlacer, which holds them a few seconds so a phrase lands in its row.
 
 import Foundation
 import Meter121Kit
@@ -13,6 +14,8 @@ final class Recorder {
     private var format: CSVFormat = .comma
     private var pending = ""
     private var placer: NotePlacer?                // voice notes: rows wait here for their phrases
+    private var trigger = LogTrigger()             // which readings get a row
+    private var flushedAt = Date.distantPast
     private(set) var notes = 0
 
     static var folder: URL {
@@ -22,7 +25,7 @@ final class Recorder {
 
     var active: Bool { handle != nil }
 
-    func begin(format: CSVFormat, notes withNotes: Bool = false) throws -> URL {
+    func begin(format: CSVFormat, notes withNotes: Bool = false, trigger: LogTrigger = LogTrigger()) throws -> URL {
         if let url, handle != nil { return url }
         let folder = Self.folder
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -37,20 +40,25 @@ final class Recorder {
         rows = 0
         start = now
         pending = ""
+        self.trigger = trigger
+        flushedAt = now
         placer = withNotes ? NotePlacer() : nil
         notes = 0
         return u
     }
 
-    func add(_ r: Reading) {
-        guard handle != nil else { return }
-        rows += 1
+    /// A reading with its limit verdict (nil without a limit); written when the trigger says so.  In voice mode every
+    /// reading goes to the placer and the rows without a note are dropped when it hands them out.
+    func add(_ r: Reading, verdict: String? = nil) {
+        guard handle != nil, trigger.accept(r, verdict: verdict) else { return }
+        if trigger.mode != .voice { rows += 1 }
         if let placer {
             write(placer.add(r))
         } else {
             pending += Session.csvRow(r, format: format)
         }
-        if rows % 50 == 0 { flush() }
+        // a sparse trigger would keep a row in memory for minutes: write at least once a second
+        if rows % 50 == 0 || (!pending.isEmpty && Date().timeIntervalSince(flushedAt) >= 1) { flush() }
     }
 
     /// A voice note; it is written with its row (or alone, when it came too late for it).
@@ -61,7 +69,10 @@ final class Recorder {
     }
 
     private func write(_ out: [NoteRow]) {
-        for row in out { pending += Session.csvRow(row, format: format) }
+        for row in out where trigger.mode != .voice || LogTrigger.keepsVoiceRow(row) {
+            if trigger.mode == .voice && row.reading != nil { rows += 1 }
+            pending += Session.csvRow(row, format: format)
+        }
     }
 
     @discardableResult
@@ -78,6 +89,7 @@ final class Recorder {
         guard let h = handle, !pending.isEmpty else { return }
         try? h.write(contentsOf: Data(pending.utf8))
         pending = ""
+        flushedAt = Date()
     }
 
     struct File: Identifiable {

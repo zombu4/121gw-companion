@@ -33,6 +33,8 @@ public enum MeterSettings {
     public static let tGet: UInt8 = 0x16, tPut: UInt8 = 0x17
     public static let b20 = 0x020
     public static let huntID = 0x420, clampID = 0x520, buzzerID = 0x01E, contID = 0x014
+    public static let intervalID = 0x018, changeID = 0x022      // logging interval In (not in the table), threshold Ch
+    public static let intervalMax = 999
     public static let getPageFirst = 8, getRetries = 8, getPageWait = 3.0
     public static let textsMax = 101
     public static let units: [String: (String, Double)] = ["Ch": ("", 1), "th": ("ohm", 1), "HY": ("ohm", 0.1)]
@@ -169,9 +171,10 @@ public final class SettingsClient {
         }
     }
 
-    /// wire id -> value as the meter reports; ids the table does not know are dropped.
+    /// wire id -> value as the meter reports; ids the table does not know are dropped, except the logging interval (the
+    /// two-byte answer of F-1.33 on carries it, `read()` hands it on; there is no row for it).
     public func rawAll() async throws -> [Int: Int] {
-        let known = Set(MeterSettings.table.map(\.wire))
+        let known = Set(MeterSettings.table.map(\.wire) + [MeterSettings.intervalID])
         let pairs: [(Int, Int)]
         if paged {
             pairs = try await pagedGet()
@@ -217,9 +220,14 @@ public final class SettingsClient {
         throw CardError("GET: the settings did not end after 64 pages")
     }
 
-    public func getAll() async throws -> [SettingItem] {
+    public func getAll() async throws -> [SettingItem] { try await read().items }
+
+    /// getAll() with the logging interval In in seconds (nil: the meter did not report it, or not as a two-byte value).
+    public func read() async throws -> (items: [SettingItem], interval: Int?) {
         let raw = try await rawAll()
-        return rows().compactMap { s in raw[s.wire].map { MeterSettings.item(s, $0) } }
+        let items = rows().compactMap { s in raw[s.wire].map { MeterSettings.item(s, $0) } }
+        let interval = userCont ? raw[MeterSettings.intervalID].flatMap { $0 <= MeterSettings.intervalMax ? $0 : nil } : nil
+        return (items, interval)
     }
 
     /// Change one setting (range checked first, written, answer and read-back compared); returns getAll().
