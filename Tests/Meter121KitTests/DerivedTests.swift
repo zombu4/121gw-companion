@@ -3,10 +3,10 @@ import XCTest
 @testable import Meter121Kit
 
 final class DerivedTests: XCTestCase {
-    func reading(mode: Int, range: Int, value: Int, rel: Bool = false, neg: Bool = false) -> Reading {
+    func reading(mode: Int, range: Int, value: Int, rel: Bool = false, neg: Bool = false, clamp: Int = 0) -> Reading {
         var f = [UInt8](repeating: 0, count: 19)
         f[0] = 0xF2; f[5] = UInt8(mode); f[6] = UInt8(range) | (neg ? 0x40 : 0)
-        f[7] = UInt8((value >> 8) & 0xFF); f[8] = UInt8(value & 0xFF); f[13] = 0x10
+        f[7] = UInt8((value >> 8) & 0xFF); f[8] = UInt8(value & 0xFF); f[13] = UInt8(clamp << 5) | 0x10
         f[16] = rel ? 0x10 : 0
         f[18] = Frames.xor(f[0..<18])
         return Display.decode(f)
@@ -17,6 +17,15 @@ final class DerivedTests: XCTestCase {
         XCTAssertEqual(Derived.ptTemperature(138.5055, 100)!, 100, accuracy: 1e-3)
         XCTAssertEqual(Derived.ptTemperature(18.52008, 100)!, -200, accuracy: 1e-3)
         XCTAssertNil(Derived.ptTemperature(10, 100))
+    }
+
+    func testRelReferenceVoidWhenTheClampRatioChanges() {
+        var d = Derived()
+        d.feed(reading(mode: 1, range: 0, value: 2500, clamp: 2))              // 0.25 V at 10 mV/A: 25 A
+        d.feed(reading(mode: 1, range: 0, value: 250, rel: true, clamp: 2))    // +2.5 A
+        XCTAssertEqual(d.values().relPct!, 10, accuracy: 1e-9)
+        d.feed(reading(mode: 1, range: 0, value: 250, rel: true, clamp: 1))    // CLP 1 mV/A with REL on
+        XCTAssertNil(d.values().relPct)
     }
 
     func testRelPercentFromTheReadingBeforeREL() {
