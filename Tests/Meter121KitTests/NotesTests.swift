@@ -76,14 +76,29 @@ final class NotesTests: XCTestCase {
         XCTAssertEqual(notes(out).map { $0.2 }, ["A / B"])
     }
 
-    func testLatePhraseGetsItsOwnRow() {
-        // spoken at 1.0 s but recognised only at 15 s: the row of 1.0 s is written already
+    func testLatePhraseGetsItsOwnRowWithTheReading() {
+        // spoken at 1.0 s but recognised only at 15 s (hold 8 s): the row of 1.0 s is written already; the note's own
+        // row repeats that reading, so no column is empty (issue 40: an importer merging empty columns moved the note)
         let rows = run(until: 20, phrases: [(15.0, phrase(1.0, "late one"))])
-        XCTAssertEqual(rows.count, 42)                                  // 41 readings + the note alone
+        XCTAssertEqual(rows.count, 42)                                  // 41 readings + the note's row
         let n = notes(rows)
         XCTAssertEqual(n.count, 1)
         XCTAssertEqual(n[0].0, 1.0, accuracy: 1e-9)
-        XCTAssertFalse(n[0].1)
+        XCTAssertTrue(n[0].1)
+        XCTAssertEqual(Session.csvRow(rows.first { !$0.note.isEmpty }!, format: .comma),
+                       Session.csvLine(Session.csvFields(reading(1.0), format: .comma, timeZone: .current) + ["late one"],
+                                       format: .comma))
+    }
+
+    func testNineSecondsLateStillLandsInItsRowWithTheDefaultHold() {
+        // issue 40: recognised 9 s after it began; the default hold of 30 s keeps the row of 1.0 s open
+        XCTAssertEqual(NotePlacer().hold, 30)
+        let rows = run(until: 40, phrases: [(10.0, phrase(1.0, "nine seconds"))], hold: NotePlacer().hold)
+        XCTAssertEqual(rows.count, 81)                                  // the readings only
+        let n = notes(rows)
+        XCTAssertEqual(n.count, 1)
+        XCTAssertEqual(n[0].0, 1.0, accuracy: 1e-9)
+        XCTAssertTrue(n[0].1)
     }
 
     func testPhraseFarFromEveryReadingGetsItsOwnRow() {

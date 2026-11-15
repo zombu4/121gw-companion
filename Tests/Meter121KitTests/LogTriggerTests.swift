@@ -97,7 +97,7 @@ final class LogTriggerTests: XCTestCase {
     func testVoiceKeepsOnlyRowsWithANote() {
         var t = LogTrigger(mode: .voice)
         XCTAssertTrue(t.accept(reading(0)))                                   // every reading goes to the placer
-        let p = NotePlacer()
+        let p = NotePlacer(hold: 8)                                           // "too late" comes after its rows
         var out: [NoteRow] = []
         var s = 0.0
         while s <= 20 {
@@ -111,7 +111,7 @@ final class LogTriggerTests: XCTestCase {
         XCTAssertEqual(out.count, 42)                                         // 41 readings and the late phrase's row
         XCTAssertEqual(kept.map { $0.note }, ["probe on TP3", "too late"])
         XCTAssertEqual(kept[0].reading?.t, t0.addingTimeInterval(3))          // the row of the reading nearest to 3.2 s
-        XCTAssertNil(kept[1].reading)                                         // a late phrase gets its own row
+        XCTAssertNil(kept[1].reading)                                         // 19 s late, its reading out of memory: time and note
     }
 
     func testTheWideSettingsAnswerCarriesTheLoggingInterval() async throws {
