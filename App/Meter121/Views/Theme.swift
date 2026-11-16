@@ -78,11 +78,18 @@ struct ValueRow: View {
     }
 }
 
+/// The iPad layout: both size classes regular (the iPad full screen or a wide Split View window).  Every iPhone (also a
+/// large one in landscape, whose height is compact) and a narrow window on the iPad keep the phone layout.
+func isWide(_ h: UserInterfaceSizeClass?, _ v: UserInterfaceSizeClass?) -> Bool { h == .regular && v == .regular }
+
 /// A page: background, title row, hairline, scrolling content.
 struct BenchPage<Content: View>: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
     let title: String
     var maxWidth: CGFloat = 720             // one column; the Live page in landscape has two and takes more
+    var wideWidth: CGFloat? = nil           // the width in the iPad layout (nil: maxWidth, as on the phone)
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -91,8 +98,8 @@ struct BenchPage<Content: View>: View {
             Hairline()
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) { content }
-                    .padding(16)
-                    .frame(maxWidth: maxWidth)
+                    .padding(isWide(hSize, vSize) ? 24 : 16)
+                    .frame(maxWidth: isWide(hSize, vSize) ? (wideWidth ?? maxWidth) : maxWidth)
                     .frame(maxWidth: .infinity)
             }
         }

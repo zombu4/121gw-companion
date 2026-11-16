@@ -12,8 +12,10 @@ Free on the App Store.
 
 Taken on an iPhone 17 Pro Max connected to a 121GW with firmware F-1.34.
 
-The companion of [121GW-Open-Firmware](https://github.com/zombu4/121GW-Open-Firmware) as a native iPhone app (Swift,
-SwiftUI, CoreBluetooth).  The firmware and the emulator are on that repository's `main` branch, the desktop companion
+The companion of [121GW-Open-Firmware](https://github.com/zombu4/121GW-Open-Firmware) as a native iPhone and iPad app (Swift,
+SwiftUI, CoreBluetooth).  From 1.3 the iPad gets its own full-screen layout: on the Live page a large display, the
+statistics, trend and keys arranged for the screen in portrait and landscape; the Scope page fills the screen.  A narrow
+Split View window on the iPad uses the iPhone layout.  The firmware and the emulator are on that repository's `main` branch, the desktop companion
 on its `companion` branch; this app follows the companion's protocol and behaviour, ported module by module (the
 source of each part is named at the top of its file).  Free: no account, no ads, no in-app purchases, no data
 collected ([privacy policy](https://github.com/zombu4/121GW-Open-Firmware/blob/main/PRIVACY.md)).
@@ -40,7 +42,7 @@ running in the background (Bluetooth background mode).
     Sources/Meter121Kit/     Frames, Link2, Display, Keys, Clock, Session, Versions, Transfer, Card, MeterSettings,
                              Releases (zip, SHA-256, install plan), Derived
     Tests/Meter121KitTests/  ported from the companion's tests, with fake meters for the transfers, card and settings
-    App/Meter121.xcodeproj   the iPhone app (Xcode 16 or newer, iOS 17 or newer)
+    App/Meter121.xcodeproj   the app for iPhone and iPad (Xcode 16 or newer, iOS / iPadOS 17 or newer)
     App/Meter121/            Link (CoreBluetooth, NTP), Model (the controller, recording, updates, report), Views
 
 ## Build and run
@@ -48,7 +50,7 @@ running in the background (Bluetooth background mode).
 1. Open `App/Meter121.xcodeproj` in Xcode 16 or newer (it picks up the local package `Meter121Kit` by itself).
 2. Target Meter121 › Signing & Capabilities: choose your team (a free Apple ID works for your own phone).  Change the
    bundle identifier `io.github.zombu4.meter121` if Xcode says it is taken.
-3. Choose your iPhone as the run destination and press Run.  The simulator has no Bluetooth: it shows the pages only.
+3. Choose your iPhone or iPad as the run destination and press Run.  The simulator has no Bluetooth: it shows the pages only.
 
 The protocol tests run without Xcode:
 
@@ -58,7 +60,9 @@ The protocol tests run without Xcode:
 
 Verified working: built in Xcode 27 and run on an iPhone 17 Pro Max with a 121GW on firmware F-1.34 and bootloader
 B-1.16 (live readings, statistics, trend, release list), in portrait and landscape.  The protocol package passes its
-47 tests (`swift test`).
+47 tests (`swift test`).  iPad (1.3): the layouts were checked on the simulators (iPad Pro 13-inch and 11-inch, iPad
+mini, portrait and landscape, a narrow Split View window); the simulator has no Bluetooth, so not yet with a meter on an
+iPad.
 
 ## Licence
 

@@ -28,3 +28,14 @@ What's new in 1.1:
 > Voice notes: while you record, say what you are measuring. Your words are recognised on your iPhone and written into
 > the recording next to the readings, in the row where you began speaking. No audio is kept and nothing leaves the
 > phone.
+
+Review note, version 1.3 (added):
+
+> Version 1.3 adds the iPad: the app runs natively on iPad with its own full-screen layout (a large display, the
+> statistics, trend and keys arranged for portrait and landscape; the scope fills the screen). The iPhone layout is
+> unchanged. Without a 121GW meter the app opens and shows "not connected".
+
+What's new in 1.3:
+
+> Now on iPad, full screen: a large meter display with statistics, trend and keys arranged for the iPad in portrait and
+> landscape, and a scope that fills the screen. On iPhone nothing changes.

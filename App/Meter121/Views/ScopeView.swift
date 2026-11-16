@@ -7,6 +7,8 @@ import SwiftUI
 struct ScopeView: View {
     @EnvironmentObject var meter: MeterController
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
     @State private var window: Double = 60
     @State private var cursors: (Double, Double)? = nil      // fractions 0..1 of the width
     @State private var frozen: [TrendPoint]? = nil
@@ -19,7 +21,9 @@ struct ScopeView: View {
     var points: [TrendPoint] { frozen ?? meter.session.trendInScale() }
 
     var body: some View {
-        BenchPage(title: "Scope") {
+        // iPad layout: the scope takes the whole width, and the trace the height left
+        GeometryReader { g in
+        BenchPage(title: "Scope", wideWidth: .infinity) {
             HStack {
                 Picker("Time base", selection: $window) {
                     ForEach(Self.windows, id: \.self) { Text($0.label).tag($0.seconds) }
@@ -27,7 +31,7 @@ struct ScopeView: View {
                 .pickerStyle(.segmented)
             }
             TrendCanvas(points: points, window: window, cursors: $cursors)
-                .frame(height: 300)
+                .frame(height: isWide(hSize, vSize) ? max(300, g.size.height - 260) : 300)
             HStack {
                 Button(frozen == nil ? "Stop" : "Run") { frozen = frozen == nil ? meter.session.trendInScale() : nil }
                     .benchButton(accent: frozen != nil)
@@ -39,6 +43,7 @@ struct ScopeView: View {
             if let c = cursors { CursorReadout(points: points, window: window, cursors: c) }
             Text("Drag a cursor on the trace to move it. The trace shows the readings of the present mode, unit and range; up to 6000 readings are kept.")
                 .font(.caption).foregroundStyle(Bench.dim(scheme))
+        }
         }
     }
 }

@@ -28,7 +28,7 @@ struct MeterInfoView: View {
     }
 
     var body: some View {
-        BenchPage(title: "Meter") {
+        BenchPage(title: "Meter", wideWidth: 900) {
             Caption("Meter")
             VStack(spacing: 0) {
                 ValueRow(label: "Firmware", value: firmwareText)

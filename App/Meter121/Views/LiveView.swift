@@ -6,10 +6,51 @@ import SwiftUI
 
 struct LiveView: View {
     @EnvironmentObject var meter: MeterController
+    @Environment(\.horizontalSizeClass) private var hSize
     @Environment(\.verticalSizeClass) private var vSize
 
     var body: some View {
-        if vSize == .compact {
+        if isWide(hSize, vSize) {
+            GeometryReader { g in
+                if g.size.width > g.size.height {
+                    // iPad in landscape: a large display, the keys and the derived values on the left, statistics and trend right
+                    BenchPage(title: "Live", wideWidth: 1400) {
+                        HStack(alignment: .top, spacing: 24) {
+                            VStack(alignment: .leading, spacing: 16) {
+                                LCDPanel(reading: meter.reading, stale: meter.stale, desk: meter.desk, digitHeight: 230, subHeight: 60, scale: 1.8)
+                                KeyPad(large: true)
+                                if let note = meter.link2Note { NoteText(text: note) }
+                                DerivedPanel()
+                            }
+                            .frame(maxWidth: .infinity)
+                            VStack(alignment: .leading, spacing: 18) {
+                                StatsPanel(scale: 1.3)
+                                MiniTrend(height: max(240, g.size.height - 260))   // the trend fills the column
+                            }
+                            .frame(width: min(460, g.size.width * 0.36))
+                        }
+                    }
+                } else {
+                    // iPad in portrait: the display across the width, statistics and derived values side by side
+                    BenchPage(title: "Live", wideWidth: 1000) {
+                        LCDPanel(reading: meter.reading, stale: meter.stale, desk: meter.desk, digitHeight: 190, subHeight: 64, scale: 1.8)
+                        if let note = meter.link2Note { NoteText(text: note) }
+                        if g.size.width >= 1000 {
+                            // the 13-inch iPads: statistics and derived values side by side
+                            HStack(alignment: .top, spacing: 24) {
+                                StatsPanel(scale: 1.3).frame(maxWidth: .infinity, alignment: .topLeading)
+                                DerivedPanel().frame(maxWidth: .infinity, alignment: .topLeading)
+                            }
+                        } else {
+                            StatsPanel(scale: 1.3)
+                            DerivedPanel()
+                        }
+                        MiniTrend(height: max(200, g.size.height - 850))       // the trend takes the height left
+                        KeyPad(large: true)
+                    }
+                }
+            }
+        } else if vSize == .compact {
             // landscape: the display alone takes the height of the screen, so it goes left and the rest right
             BenchPage(title: "Live", maxWidth: 1100) {
                 HStack(alignment: .top, spacing: 16) {
@@ -58,6 +99,7 @@ struct LCDPanel: View {
     let desk: Bool
     var digitHeight: CGFloat = 92           // the main digits at their largest; they shrink to the width they get
     var subHeight: CGFloat = 34             // the sub display's digits
+    var scale: CGFloat = 1                  // the iPad layout: the symbols, units and bargraph larger
 
     static let symbolOrder = ["AC", "DC", "AUTO", "HOLD", "A-HOLD", "REL", "MIN", "MAX", "AVG", "PEAK", "MEM", "1kHz", "HV",
                               "APO", "BAT", "BT"]
@@ -78,9 +120,9 @@ struct LCDPanel: View {
                 Spacer(minLength: 0)
                 SevenSegmentText(text: reading?.text ?? "-----", lit: stale ? Bench.yellow.opacity(0.45) : Bench.yellow, height: digitHeight)
                 Text(reading?.unit ?? "")
-                    .font(.system(size: 30, weight: .semibold))
+                    .font(.system(size: 30 * scale, weight: .semibold))
                     .foregroundStyle(Bench.ink(scheme))
-                    .frame(minWidth: 56, alignment: .leading)
+                    .frame(minWidth: 56 * scale, alignment: .leading)
             }
             .minimumScaleFactor(0.5)
             HStack(alignment: .bottom) {
@@ -88,16 +130,16 @@ struct LCDPanel: View {
                     Caption(r.subLabel)
                     Spacer()
                     SevenSegmentText(text: r.subText, cells: 5, lit: Bench.ink(scheme), height: subHeight)
-                    Text(r.subUnit).font(.system(size: 15, weight: .semibold)).frame(minWidth: 34, alignment: .leading)
+                    Text(r.subUnit).font(.system(size: 15 * scale, weight: .semibold)).frame(minWidth: 34 * scale, alignment: .leading)
                 } else {
                     Caption("sub display")
                     Spacer()
                     Text("—").foregroundStyle(Bench.dim(scheme))
                 }
             }
-            BarGraph(bar: reading?.bar)
+            BarGraph(bar: reading?.bar, scale: scale)
         }
-        .padding(14)
+        .padding(14 * scale)
         .background(Bench.panel(scheme))
         .overlay(Rectangle().stroke(Bench.hairline(scheme), lineWidth: 0.5))
     }
@@ -107,11 +149,11 @@ struct LCDPanel: View {
         return HStack(spacing: 6) {
             ForEach(Self.symbolOrder, id: \.self) { s in
                 if on.contains(s) {
-                    Text(s).font(.system(size: 11, weight: .bold)).foregroundStyle(Color.black)
+                    Text(s).font(.system(size: 11 * scale, weight: .bold)).foregroundStyle(Color.black)
                         .padding(.horizontal, 4).padding(.vertical, 1).background(Bench.yellow)
                 }
             }
-            if on.isEmpty { Text(" ").font(.system(size: 11)) }
+            if on.isEmpty { Text(" ").font(.system(size: 11 * scale)) }
         }
     }
 }
@@ -119,11 +161,13 @@ struct LCDPanel: View {
 struct BarGraph: View {
     @Environment(\.colorScheme) private var scheme
     let bar: Bargraph?
+    var scale: CGFloat = 1
 
     var body: some View {
         let b = bar ?? Bargraph(shown: false, lit: 0, negative: false, label: "")
+        let tall = 14 * scale, short = 9 * scale
         HStack(spacing: 6) {
-            Text(b.shown && b.negative ? "−" : " ").font(.system(size: 13, weight: .bold)).frame(width: 10)
+            Text(b.shown && b.negative ? "−" : " ").font(.system(size: 13 * scale, weight: .bold)).frame(width: 10 * scale)
             GeometryReader { g in
                 let n = 26
                 let gap: CGFloat = 2
@@ -132,14 +176,14 @@ struct BarGraph: View {
                     ForEach(0..<n, id: \.self) { i in
                         Rectangle()
                             .fill(b.shown && i < b.lit ? Bench.yellow : Bench.segmentOff(scheme))
-                            .frame(width: max(1, w), height: i % 5 == 0 ? 14 : 9)
+                            .frame(width: max(1, w), height: i % 5 == 0 ? tall : short)
                     }
                 }
-                .frame(height: 14, alignment: .bottom)
+                .frame(height: tall, alignment: .bottom)
             }
-            .frame(height: 14)
-            Text(b.shown ? b.label : "").font(.system(size: 11, weight: .semibold)).monospacedDigit()
-                .foregroundStyle(Bench.dim(scheme)).frame(width: 34, alignment: .trailing)
+            .frame(height: tall)
+            Text(b.shown ? b.label : "").font(.system(size: 11 * scale, weight: .semibold)).monospacedDigit()
+                .foregroundStyle(Bench.dim(scheme)).frame(width: 34 * scale, alignment: .trailing)
         }
     }
 }
@@ -147,6 +191,7 @@ struct BarGraph: View {
 struct StatsPanel: View {
     @EnvironmentObject var meter: MeterController
     @Environment(\.colorScheme) private var scheme
+    var scale: CGFloat = 1                  // the iPad layout: larger values
 
     var body: some View {
         let s = meter.session.stats
@@ -171,8 +216,8 @@ struct StatsPanel: View {
 
     func cell(_ k: String, _ v: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(k).font(.system(size: 10, weight: .semibold)).foregroundStyle(Bench.dim(scheme))
-            Text(v).font(.system(size: 15, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+            Text(k).font(.system(size: 10 * scale, weight: .semibold)).foregroundStyle(Bench.dim(scheme))
+            Text(v).font(.system(size: 15 * scale, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -181,11 +226,12 @@ struct StatsPanel: View {
 /// The last minute of the trend, small.
 struct MiniTrend: View {
     @EnvironmentObject var meter: MeterController
+    var height: CGFloat = 110               // taller in the iPad layout
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Caption("Trend · last 60 s")
             TrendCanvas(points: meter.session.trendInScale(), window: 60, cursors: nil)
-                .frame(height: 110)
+                .frame(height: height)
         }
     }
 }
@@ -199,6 +245,7 @@ struct KeyPad: View {
     @State private var confirmSetup = false
     @State private var busy = false
     var compact = false                     // landscape: lower keys, no caption, so they fit under the display
+    var large = false                       // the iPad layout: taller keys, larger labels
 
     let rows: [[MeterKey]] = [[.range, .hold, .rel, .peak], [.mode, .minmax, .mem, .setup]]
 
@@ -206,11 +253,11 @@ struct KeyPad: View {
         VStack(alignment: .leading, spacing: 8) {
             if !compact { Caption("Keys · touch and hold for a long press") }
             ForEach(0..<rows.count, id: \.self) { r in
-                HStack(spacing: 8) {
+                HStack(spacing: large ? 12 : 8) {
                     ForEach(rows[r], id: \.self) { k in
                         Text(k.label)
-                            .font(.system(size: 13, weight: .semibold))
-                            .frame(maxWidth: .infinity, minHeight: compact ? 38 : 44)
+                            .font(.system(size: large ? 17 : 13, weight: .semibold))
+                            .frame(maxWidth: .infinity, minHeight: large ? 60 : compact ? 38 : 44)
                             .overlay(Capsule().stroke(Bench.hairline(scheme)))
                             .contentShape(Capsule())
                             .onLongPressGesture(minimumDuration: 0.6) { press(k, long: true) }

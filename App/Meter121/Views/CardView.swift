@@ -16,7 +16,7 @@ struct CardView: View {
     var lock: String? { meter.card.busy ? nil : meter.lockReason }
 
     var body: some View {
-        BenchPage(title: "Card") {
+        BenchPage(title: "Card", wideWidth: 1000) {
             if let lock {
                 NoteText(text: lock + ". On the meter: SETUP until the page Ld, Bluetooth on (Ld-bt), logging off.")
             }

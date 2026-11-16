@@ -14,7 +14,7 @@ struct LogView: View {
     @State private var toDelete: URL?
 
     var body: some View {
-        BenchPage(title: "Log") {
+        BenchPage(title: "Log", wideWidth: 1000) {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 4) {
                     Caption(meter.recording ? "Recording" : meter.recordingClosing ? "Writing the last note" : "Not recording")
