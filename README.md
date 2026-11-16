@@ -15,8 +15,8 @@ Taken on an iPhone 17 Pro Max connected to a 121GW with firmware F-1.34.
 On iPad (from 1.3), full screen with its own layout:
 
 <p align="center">
-  <img src="docs/ipad-1-live.jpg" alt="iPad LIVE: a large seven-segment display, statistics and derived values, a tall trend and the meter's keys" width="380">
-  <img src="docs/ipad-2-scope.jpg" alt="iPad SCOPE: the scope grid filling the screen with time base, stop and cursors" width="380">
+  <img src="docs/ipad-dark-1-live.jpg" alt="iPad LIVE: a large seven-segment display, statistics and derived values, a tall trend and the meter's keys" width="380">
+  <img src="docs/ipad-dark-2-scope.jpg" alt="iPad SCOPE: the scope grid filling the screen with time base, stop and cursors" width="380">
 </p>
 
 Taken on the iPad Pro 13-inch simulator with demo readings (the simulator has no Bluetooth).
