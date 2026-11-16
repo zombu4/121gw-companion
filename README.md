@@ -1,4 +1,4 @@
-# 121GW for iPhone
+# 121GW for iPhone and iPad
 
 Free on the App Store.
 
@@ -11,6 +11,15 @@ Free on the App Store.
 <p align="center"><a href="https://apps.apple.com/app/id6833369656"><img src="docs/app-store-badge.svg" alt="Download on the App Store" height="54"></a></p>
 
 Taken on an iPhone 17 Pro Max connected to a 121GW with firmware F-1.34.
+
+On iPad (from 1.3), full screen with its own layout:
+
+<p align="center">
+  <img src="docs/ipad-1-live.jpg" alt="iPad LIVE: a large seven-segment display, statistics and derived values, a tall trend and the meter's keys" width="380">
+  <img src="docs/ipad-2-scope.jpg" alt="iPad SCOPE: the scope grid filling the screen with time base, stop and cursors" width="380">
+</p>
+
+Taken on the iPad Pro 13-inch simulator with demo readings (the simulator has no Bluetooth).
 
 The companion of [121GW-Open-Firmware](https://github.com/zombu4/121GW-Open-Firmware) as a native iPhone and iPad app (Swift,
 SwiftUI, CoreBluetooth).  From 1.3 the iPad gets its own full-screen layout: on the Live page a large display, the
